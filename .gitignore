@@ -1,0 +1,40 @@
+# Build outputs
+/dist/
+/bin/
+/build/
+/out/
+/snailproxy
+/snailproxy-*
+/ssss
+
+# Local release/API snapshots
+/latest.json
+
+# Go
+*.test
+*.prof
+*.cover
+coverage.out
+
+# Archives and packages
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.gz
+*.deb
+*.rpm
+*.pkg.tar.zst
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local environment
+.env
+.env.*
+!.env.example
