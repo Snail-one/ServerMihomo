@@ -17,6 +17,7 @@ type Release struct {
 type Asset struct {
 	Name               string `json:"name"`
 	Size               int64  `json:"size"`
+	Digest             string `json:"digest"`
 	BrowserDownloadURL string `json:"browser_download_url"`
 }
 

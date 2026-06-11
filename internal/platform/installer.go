@@ -3,5 +3,10 @@ package platform
 import "context"
 
 type Installer interface {
-	Install(ctx context.Context, archivePath string, assetName string) error
+	PrepareBinary(ctx context.Context, archivePath string, assetName string, overwrite bool) error
+	InstallService(ctx context.Context) error
+}
+
+type Uninstaller interface {
+	Uninstall(ctx context.Context) error
 }
