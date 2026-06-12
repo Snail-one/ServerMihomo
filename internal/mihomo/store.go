@@ -966,12 +966,12 @@ mixed-port: 57913
 allow-lan: false
 log-level: info
 ipv6: true
-external-controller: ''
+external-controller: 127.0.0.1:57912
 secret: %s
-external-ui: ./metacubexd
+external-ui: metacubexd
 external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
 unified-delay: true
-lan-allowed-ips:
+lan-allowed-ips:8
 - 127.0.0.1/32
 - 192.168.31.0/24
 tun:

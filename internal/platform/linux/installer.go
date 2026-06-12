@@ -24,8 +24,8 @@ const (
 )
 
 const (
-	defaultMihomoMixedPort     = 57913
-	defaultNoProxy             = "localhost,127.0.0.1,127.0.0.0/8,::1," +
+	defaultMihomoMixedPort = 57913
+	defaultNoProxy         = "localhost,127.0.0.1,127.0.0.0/8,::1," +
 		"10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16,*.local"
 	bashrcFileName             = ".bashrc"
 	proxyEnvironmentBlockBegin = "# >>> snailproxy proxy environment >>>"
@@ -45,7 +45,6 @@ ExecStart=/opt/mihomo/mihomo -d /opt/mihomo
 ExecReload=/bin/kill -HUP $MAINPID
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
-DeviceAllow=/dev/net/tun rw
 Restart=always
 RestartSec=5
 LimitNPROC=500

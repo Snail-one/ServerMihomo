@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -37,6 +38,21 @@ type mihomoPackageManifestAsset struct {
 	URL    string `json:"url"`
 	SHA256 string `json:"sha256"`
 	Size   int64  `json:"size"`
+}
+
+type missingBundledMihomoPackageError struct {
+	BaseDir string
+	Pattern string
+}
+
+func (e missingBundledMihomoPackageError) Error() string {
+	expectedPath := filepath.Join(e.BaseDir, "packages", e.Pattern)
+	return fmt.Sprintf(
+		"本地安装资源中没有当前平台的 mihomo 安装包: %s/%s（期望匹配: %s）；请先运行 go generate ./resources 并重新构建 snailproxy，或在主菜单选择“下载并安装 mihomo 程序文件”",
+		runtime.GOOS,
+		runtime.GOARCH,
+		expectedPath,
+	)
 }
 
 func Run(ctx context.Context, args []string) error {
@@ -481,6 +497,12 @@ func installBundledMihomoBinary(baseDir string, overwrite bool) (string, error) 
 
 	packagePath, err := bundledMihomoPackagePath(baseDir)
 	if err != nil {
+		var missingPackage missingBundledMihomoPackageError
+		if errors.As(err, &missingPackage) && fileExists(targetPath) {
+			fmt.Printf("缺少当前平台的内置 mihomo 安装包，无法覆盖现有程序文件；已保留: %s\n", targetPath)
+			fmt.Printf("提示: %v\n", missingPackage)
+			return "", nil
+		}
 		return "", err
 	}
 	binaryPath, err := archive.ExtractMihomoBinary(packagePath, filepath.Base(packagePath), baseDir)
@@ -502,7 +524,10 @@ func bundledMihomoPackagePath(baseDir string) (string, error) {
 		return "", err
 	}
 	if len(matches) == 0 {
-		return "", fmt.Errorf("本地安装资源中没有当前平台的 mihomo 安装包: %s/%s", runtime.GOOS, runtime.GOARCH)
+		return "", missingBundledMihomoPackageError{
+			BaseDir: baseDir,
+			Pattern: bundledMihomoPackagePattern(),
+		}
 	}
 	return matches[0], nil
 }
