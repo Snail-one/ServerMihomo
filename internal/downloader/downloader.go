@@ -101,24 +101,31 @@ func VerifyAssetFile(path string, asset github.Asset) error {
 		return nil
 	}
 
-	in, err := os.Open(path)
+	actual, err := FileSHA256(path)
 	if err != nil {
-		return fmt.Errorf("打开文件进行 sha256 校验失败: %w", err)
+		return err
 	}
-	defer in.Close()
-
-	hash := sha256.New()
-	if _, err := io.Copy(hash, in); err != nil {
-		return fmt.Errorf("读取文件进行 sha256 校验失败: %w", err)
-	}
-
-	actual := hex.EncodeToString(hash.Sum(nil))
 	if actual != expected {
 		return fmt.Errorf("sha256 校验失败: 期望 %s，实际 %s", expected, actual)
 	}
 
 	fmt.Printf("sha256 校验通过: %s\n", actual)
 	return nil
+}
+
+func FileSHA256(path string) (string, error) {
+	in, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("打开文件进行 sha256 校验失败: %w", err)
+	}
+	defer in.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, in); err != nil {
+		return "", fmt.Errorf("读取文件进行 sha256 校验失败: %w", err)
+	}
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func downloadDir() string {

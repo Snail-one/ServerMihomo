@@ -2,12 +2,15 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 
+	"snailproxy/internal/archive"
 	"snailproxy/internal/downloader"
 	"snailproxy/internal/github"
 	"snailproxy/internal/mihomo"
@@ -18,6 +21,23 @@ import (
 
 const latestReleaseURL = "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest"
 const linuxInstalledBinary = "/opt/mihomo/mihomo"
+const mihomoPackageManifestFile = "manifest.json"
+
+type mihomoPackageManifest struct {
+	Source      string                       `json:"source"`
+	Method      string                       `json:"method"`
+	Version     string                       `json:"version"`
+	APIURL      string                       `json:"api_url"`
+	GeneratedAt string                       `json:"generated_at"`
+	Assets      []mihomoPackageManifestAsset `json:"assets"`
+}
+
+type mihomoPackageManifestAsset struct {
+	Name   string `json:"name"`
+	URL    string `json:"url"`
+	SHA256 string `json:"sha256"`
+	Size   int64  `json:"size"`
+}
 
 func Run(ctx context.Context, args []string) error {
 	fmt.Printf("当前系统: %s/%s\n", runtime.GOOS, runtime.GOARCH)
@@ -55,8 +75,10 @@ func runAction(ctx context.Context, action ui.Action) error {
 		return downloadOrUpdateSubscription(ctx)
 	case ui.ActionSelectSubscription:
 		return selectAndApplySubscription(ctx)
-	case ui.ActionReleaseResources:
-		return releaseLocalResourcePackage()
+	case ui.ActionLocalInstall:
+		return localInstall()
+	case ui.ActionVerifyLocalMihomo:
+		return verifyLocalMihomo(ctx)
 	case ui.ActionUninstall:
 		return platform.Uninstall(ctx)
 	default:
@@ -376,9 +398,13 @@ func selectAndApplySubscription(ctx context.Context) error {
 	return nil
 }
 
-func releaseLocalResourcePackage() error {
+func localInstall() error {
 	store := mihomo.NewStore()
-	overwrite, err := ui.ConfirmOverwriteResourcePackage(store.BaseDir)
+	if err := store.EnsureDirs(); err != nil {
+		return err
+	}
+
+	overwrite, err := ui.ConfirmOverwriteLocalInstall(store.BaseDir)
 	if err != nil {
 		return err
 	}
@@ -392,17 +418,185 @@ func releaseLocalResourcePackage() error {
 	}
 
 	if len(result.Released) == 0 && len(result.Skipped) == 0 {
-		fmt.Printf("本地资源包没有可释放文件: resources/mihomo\n")
-		return nil
+		fmt.Printf("本地安装资源包没有可释放文件: resources/mihomo\n")
+	} else {
+		fmt.Printf("本地安装资源已释放到: %s\n", result.TargetDir)
+		for _, path := range result.Released {
+			fmt.Printf("已释放: %s\n", path)
+		}
+		for _, path := range result.Skipped {
+			fmt.Printf("已跳过已有文件: %s\n", path)
+		}
 	}
-	fmt.Printf("本地资源包已释放到: %s\n", result.TargetDir)
-	for _, path := range result.Released {
-		fmt.Printf("已释放: %s\n", path)
+
+	binaryPath, err := installBundledMihomoBinary(store.BaseDir, overwrite)
+	if err != nil {
+		return err
 	}
-	for _, path := range result.Skipped {
-		fmt.Printf("已跳过已有文件: %s\n", path)
+	if binaryPath != "" {
+		fmt.Printf("mihomo 程序文件已安装到: %s\n", binaryPath)
 	}
 	return nil
+}
+
+func installBundledMihomoBinary(baseDir string, overwrite bool) (string, error) {
+	targetPath := filepath.Join(baseDir, mihomoBinaryName())
+	if fileExists(targetPath) && !overwrite {
+		fmt.Printf("已保留现有 mihomo 程序文件: %s\n", targetPath)
+		return "", nil
+	}
+
+	packagePath, err := bundledMihomoPackagePath(baseDir)
+	if err != nil {
+		return "", err
+	}
+	binaryPath, err := archive.ExtractMihomoBinary(packagePath, filepath.Base(packagePath), baseDir)
+	if err != nil {
+		return "", fmt.Errorf("解压内置 mihomo 安装包失败: %w", err)
+	}
+	if runtime.GOOS == "linux" {
+		if err := os.Chmod(binaryPath, 0o770); err != nil {
+			return "", fmt.Errorf("设置 mihomo 程序权限失败: %w", err)
+		}
+	}
+	return binaryPath, nil
+}
+
+func bundledMihomoPackagePath(baseDir string) (string, error) {
+	pattern := filepath.Join(baseDir, "packages", bundledMihomoPackagePattern())
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return "", err
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("本地安装资源中没有当前平台的 mihomo 安装包: %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	return matches[0], nil
+}
+
+func bundledMihomoPackagePattern() string {
+	switch runtime.GOOS + "/" + runtime.GOARCH {
+	case "windows/amd64":
+		return "mihomo-windows-amd64-v3-v*.zip"
+	case "linux/amd64":
+		return "mihomo-linux-amd64-v3-v*.gz"
+	case "linux/arm64":
+		return "mihomo-linux-arm64-v*.gz"
+	default:
+		return fmt.Sprintf("mihomo-%s-%s-*", runtime.GOOS, runtime.GOARCH)
+	}
+}
+
+func mihomoBinaryName() string {
+	if runtime.GOOS == "windows" {
+		return "mihomo.exe"
+	}
+	return "mihomo"
+}
+
+func verifyLocalMihomo(ctx context.Context) error {
+	store := mihomo.NewStore()
+	binaryPath := filepath.Join(store.BaseDir, mihomoBinaryName())
+	if !fileExists(binaryPath) {
+		return fmt.Errorf("本地 mihomo 程序文件不存在: %s", binaryPath)
+	}
+
+	packagePath, err := bundledMihomoPackagePath(store.BaseDir)
+	if err != nil {
+		return fmt.Errorf("缺少本地安装包，无法验证当前 mihomo: %w", err)
+	}
+	assetName := filepath.Base(packagePath)
+
+	manifest, err := loadMihomoPackageManifest(store.BaseDir)
+	if err != nil {
+		return err
+	}
+	asset, ok := findManifestAssetByName(manifest.Assets, assetName)
+	if !ok {
+		return fmt.Errorf("本地安装包 manifest 中没有当前平台安装包: %s", assetName)
+	}
+
+	fmt.Printf("本地安装包版本: %s（%s，生成于 %s）\n", manifest.Version, manifest.Source, manifest.GeneratedAt)
+	if asset.SHA256 == "" {
+		return fmt.Errorf("本地安装包 manifest 缺少 sha256，无法验证安装包: %s", assetName)
+	}
+	actualPackageHash, err := downloader.FileSHA256(packagePath)
+	if err != nil {
+		return err
+	}
+	if actualPackageHash != strings.ToLower(strings.TrimSpace(asset.SHA256)) {
+		return fmt.Errorf("本地安装包 sha256 验证失败: 期望 %s，实际 %s", asset.SHA256, actualPackageHash)
+	}
+	fmt.Printf("本地安装包 sha256 验证通过: %s\n", actualPackageHash)
+
+	tempDir, err := os.MkdirTemp("", "snailproxy-mihomo-verify-")
+	if err != nil {
+		return fmt.Errorf("创建验证临时目录失败: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	expectedBinaryPath, err := archive.ExtractMihomoBinary(packagePath, assetName, tempDir)
+	if err != nil {
+		return fmt.Errorf("解压已验证安装包失败: %w", err)
+	}
+
+	expectedHash, err := downloader.FileSHA256(expectedBinaryPath)
+	if err != nil {
+		return err
+	}
+	actualHash, err := downloader.FileSHA256(binaryPath)
+	if err != nil {
+		return err
+	}
+	if actualHash != expectedHash {
+		return fmt.Errorf("本地 mihomo 文件验证失败: 期望 %s，实际 %s", expectedHash, actualHash)
+	}
+
+	fmt.Printf("本地 mihomo 文件验证通过: %s\n", binaryPath)
+	fmt.Printf("mihomo sha256: %s\n", actualHash)
+	printMihomoFreshnessHint(ctx, manifest)
+	return nil
+}
+
+func loadMihomoPackageManifest(baseDir string) (mihomoPackageManifest, error) {
+	targetPath := filepath.Join(baseDir, "packages", mihomoPackageManifestFile)
+	data, err := os.ReadFile(targetPath)
+	if err != nil {
+		return mihomoPackageManifest{}, fmt.Errorf("读取本地安装包 manifest 失败: %w", err)
+	}
+	var manifest mihomoPackageManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return mihomoPackageManifest{}, fmt.Errorf("解析本地安装包 manifest 失败: %w", err)
+	}
+	if strings.TrimSpace(manifest.Version) == "" {
+		return mihomoPackageManifest{}, fmt.Errorf("本地安装包 manifest 缺少版本号")
+	}
+	return manifest, nil
+}
+
+func findManifestAssetByName(assets []mihomoPackageManifestAsset, name string) (mihomoPackageManifestAsset, bool) {
+	for _, asset := range assets {
+		if asset.Name == name {
+			return asset, true
+		}
+	}
+	return mihomoPackageManifestAsset{}, false
+}
+
+func printMihomoFreshnessHint(ctx context.Context, manifest mihomoPackageManifest) {
+	if strings.TrimSpace(manifest.APIURL) == "" {
+		return
+	}
+	release, err := github.FetchLatestRelease(ctx, manifest.APIURL)
+	if err != nil {
+		fmt.Printf("提示: 无法检查当前最新版本: %v\n", err)
+		return
+	}
+	if strings.TrimSpace(release.TagName) == strings.TrimSpace(manifest.Version) {
+		fmt.Printf("版本状态: 本地安装包版本就是当前最新版本 %s。\n", manifest.Version)
+		return
+	}
+	fmt.Printf("版本状态: 本地安装包版本是 %s，当前最新版本是 %s；本地文件验证通过，但离线包可能已过时。\n", manifest.Version, release.TagName)
 }
 
 func subscriptionLabels(subscriptions []mihomo.Subscription) []string {

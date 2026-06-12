@@ -968,6 +968,8 @@ log-level: info
 ipv6: true
 external-controller: ''
 secret: %s
+external-ui: ./metacubexd
+external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
 unified-delay: true
 lan-allowed-ips:
 - 127.0.0.1/32

@@ -20,7 +20,8 @@ const (
 	ActionUninstall
 	ActionDownloadSubscription
 	ActionSelectSubscription
-	ActionReleaseResources
+	ActionLocalInstall
+	ActionVerifyLocalMihomo
 )
 
 const (
@@ -33,55 +34,70 @@ const (
 var stdinReader = bufio.NewReader(os.Stdin)
 
 func SelectLinuxAction() (Action, error) {
-	fmt.Println("Linux 操作菜单:")
-	fmt.Println("  1. 下载并安装 mihomo 程序文件")
-	fmt.Println("  2. 创建用户并安装 mihomo systemd 服务")
-	fmt.Println("  3. 下载/更新/删除 Clash 订阅")
-	fmt.Println("  4. 选择订阅并生成 mihomo 配置")
-	fmt.Println("  5. 释放本地资源包")
-	fmt.Println("  6. 卸载并清理 mihomo")
-	fmt.Println("  0. 退出")
+	printMenu := func() {
+		fmt.Println("Linux 操作菜单:")
+		fmt.Println("  1. 下载并安装 mihomo 程序文件")
+		fmt.Println("  2. 创建用户并安装 mihomo systemd 服务")
+		fmt.Println("  3. 下载/更新/删除 Clash 订阅")
+		fmt.Println("  4. 选择订阅并生成 mihomo 配置")
+		fmt.Println("  5. 本地安装")
+		fmt.Println("  6. 验证本地 mihomo")
+		fmt.Println("  7. 卸载并清理 mihomo")
+		fmt.Println("  0. 退出")
+	}
 
-	return selectAction("[0-6]", map[string]Action{
+	return selectAction("[0-7]", printMenu, map[string]Action{
 		"1": ActionDownload,
 		"2": ActionInstallService,
 		"3": ActionDownloadSubscription,
 		"4": ActionSelectSubscription,
-		"5": ActionReleaseResources,
-		"6": ActionUninstall,
+		"5": ActionLocalInstall,
+		"6": ActionVerifyLocalMihomo,
+		"7": ActionUninstall,
 		"0": ActionExit,
 	})
 }
 
 func SelectWindowsAction() (Action, error) {
-	fmt.Println("Windows 操作菜单:")
-	fmt.Println("  1. 下载 mihomo")
-	fmt.Println("  2. 下载/更新/删除 Clash 订阅")
-	fmt.Println("  3. 选择订阅并生成 mihomo 配置")
-	fmt.Println("  4. 释放本地资源包")
-	fmt.Println("  0. 退出")
+	printMenu := func() {
+		fmt.Println("Windows 操作菜单:")
+		fmt.Println("  1. 下载 mihomo")
+		fmt.Println("  2. 下载/更新/删除 Clash 订阅")
+		fmt.Println("  3. 选择订阅并生成 mihomo 配置")
+		fmt.Println("  4. 本地安装")
+		fmt.Println("  5. 验证本地 mihomo")
+		fmt.Println("  0. 退出")
+	}
 
-	return selectAction("[0-4]", map[string]Action{
+	return selectAction("[0-5]", printMenu, map[string]Action{
 		"1": ActionDownload,
 		"2": ActionDownloadSubscription,
 		"3": ActionSelectSubscription,
-		"4": ActionReleaseResources,
+		"4": ActionLocalInstall,
+		"5": ActionVerifyLocalMihomo,
 		"0": ActionExit,
 	})
 }
 
-func selectAction(promptRange string, actions map[string]Action) (Action, error) {
+func selectAction(promptRange string, printMenu func(), actions map[string]Action) (Action, error) {
 	for {
+		printMenu()
 		fmt.Printf("请输入操作编号 %s: ", promptRange)
 		line, err := readLine()
 		if err != nil {
 			return ActionExit, fmt.Errorf("读取用户输入失败: %w", err)
 		}
 
-		if action, ok := actions[strings.TrimSpace(line)]; ok {
+		value := strings.TrimSpace(line)
+		if action, ok := actions[value]; ok {
 			return action, nil
 		}
-		fmt.Println("输入无效，请重新输入。")
+		if value == "" {
+			fmt.Println("输入不能为空，请输入菜单编号。")
+		} else {
+			fmt.Println("输入无效，请重新输入。")
+		}
+		fmt.Println()
 	}
 }
 
@@ -123,9 +139,9 @@ func ConfirmOverwriteDefaultConfig(path string) (bool, error) {
 	return ConfirmNoDefault("是否覆盖默认配置? [y/N]: ")
 }
 
-func ConfirmOverwriteResourcePackage(targetDir string) (bool, error) {
-	fmt.Printf("本地资源包将释放到: %s\n", targetDir)
-	return ConfirmNoDefault("遇到同名文件时是否覆盖? [y/N]: ")
+func ConfirmOverwriteLocalInstall(targetDir string) (bool, error) {
+	fmt.Printf("本地安装目录: %s\n", targetDir)
+	return ConfirmNoDefault("遇到同名文件时是否覆盖安装? [y/N]: ")
 }
 
 func ConfirmDeleteSubscription(label string) (bool, error) {
