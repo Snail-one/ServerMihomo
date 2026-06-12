@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"snailproxy/internal/github"
+	"snailproxy/internal/progress"
 )
 
 func AssetPath(asset github.Asset) string {
@@ -64,7 +65,13 @@ func DownloadAsset(ctx context.Context, asset github.Asset) (string, error) {
 		return "", fmt.Errorf("创建下载文件失败: %w", err)
 	}
 
-	written, err := io.Copy(out, resp.Body)
+	total := resp.ContentLength
+	if total <= 0 && asset.Size > 0 {
+		total = asset.Size
+	}
+	progressWriter := progress.NewWriter(os.Stdout, "下载进度", total)
+	written, err := io.Copy(io.MultiWriter(out, progressWriter), resp.Body)
+	progressWriter.Finish()
 	closeErr := out.Close()
 	if err != nil {
 		return "", fmt.Errorf("写入下载文件失败: %w", err)

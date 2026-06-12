@@ -10,6 +10,7 @@ import (
 
 	"snailproxy/internal/downloader"
 	"snailproxy/internal/github"
+	"snailproxy/internal/mihomo"
 	"snailproxy/internal/platform"
 	"snailproxy/internal/ui"
 )
@@ -49,6 +50,10 @@ func runAction(ctx context.Context, action ui.Action) error {
 		return downloadAndPrepareMihomo(ctx)
 	case ui.ActionInstallService:
 		return installMihomoService(ctx)
+	case ui.ActionDownloadSubscription:
+		return downloadOrUpdateSubscription(ctx)
+	case ui.ActionSelectSubscription:
+		return selectAndApplySubscription(ctx)
 	case ui.ActionUninstall:
 		return platform.Uninstall(ctx)
 	default:
@@ -166,6 +171,238 @@ func installMihomoService(ctx context.Context) error {
 	}
 
 	return installer.InstallService(ctx)
+}
+
+func downloadOrUpdateSubscription(ctx context.Context) error {
+	store := mihomo.NewStore()
+	if err := store.EnsureDirs(); err != nil {
+		return err
+	}
+
+	subscriptions, err := store.LoadSubscriptions()
+	if err != nil {
+		return err
+	}
+
+	index, action, err := ui.SelectSubscriptionDownloadTarget(subscriptionLabels(subscriptions))
+	if err != nil {
+		return err
+	}
+
+	switch action {
+	case ui.SubscriptionDownloadReturn:
+		fmt.Println("已返回。")
+		return nil
+	case ui.SubscriptionDownloadCreate:
+		return downloadNewSubscription(ctx, store, subscriptions)
+	case ui.SubscriptionDownloadDelete:
+		return deleteExistingSubscription(store, subscriptions)
+	case ui.SubscriptionDownloadUpdate:
+		return updateExistingSubscription(ctx, store, subscriptions, index)
+	default:
+		return fmt.Errorf("未知订阅操作: %d", action)
+	}
+}
+
+func downloadNewSubscription(ctx context.Context, store mihomo.Store, subscriptions []mihomo.Subscription) error {
+	subscriptionURL, err := ui.PromptSubscriptionURL()
+	if err != nil {
+		return err
+	}
+
+	fileName, err := store.NewSubscriptionFileName()
+	if err != nil {
+		return err
+	}
+	if err := mihomo.DownloadSubscription(ctx, subscriptionURL, store.ProfilePath(fileName)); err != nil {
+		return err
+	}
+
+	name, err := ui.PromptSubscriptionName(mihomo.DefaultSubscriptionName(subscriptionURL, fileName))
+	if err != nil {
+		return err
+	}
+
+	subscriptions = append(subscriptions, mihomo.Subscription{
+		Name: name,
+		File: fileName,
+		URL:  subscriptionURL,
+	})
+	if err := store.SaveSubscriptions(subscriptions); err != nil {
+		return err
+	}
+
+	fmt.Printf("订阅已保存: %s（%s）\n", name, fileName)
+	fmt.Printf("订阅信息: %s\n", store.MetadataPath())
+	return nil
+}
+
+func updateExistingSubscription(ctx context.Context, store mihomo.Store, subscriptions []mihomo.Subscription, index int) error {
+	if index < 0 || index >= len(subscriptions) {
+		return fmt.Errorf("订阅选择无效")
+	}
+
+	subscription := subscriptions[index]
+	if strings.TrimSpace(subscription.URL) == "" {
+		return fmt.Errorf("订阅 %s 缺少下载链接", subscription.Name)
+	}
+	if strings.TrimSpace(subscription.File) == "" {
+		return fmt.Errorf("订阅 %s 缺少实际文件名", subscription.Name)
+	}
+
+	fmt.Printf("正在更新订阅: %s（%s）\n", subscription.Name, subscription.File)
+	if err := mihomo.DownloadSubscription(ctx, subscription.URL, store.ProfilePath(subscription.File)); err != nil {
+		return err
+	}
+
+	name, err := ui.PromptSubscriptionName(subscription.Name)
+	if err != nil {
+		return err
+	}
+	subscription.Name = name
+	subscriptions[index] = subscription
+
+	if err := store.SaveSubscriptions(subscriptions); err != nil {
+		return err
+	}
+
+	fmt.Printf("订阅已更新: %s（%s）\n", subscription.Name, subscription.File)
+	return nil
+}
+
+func deleteExistingSubscription(store mihomo.Store, subscriptions []mihomo.Subscription) error {
+	if len(subscriptions) == 0 {
+		fmt.Println("没有可删除的订阅。")
+		return nil
+	}
+
+	index, err := ui.SelectSubscription(subscriptionLabels(subscriptions))
+	if err != nil {
+		return err
+	}
+	if index < 0 {
+		fmt.Println("已返回。")
+		return nil
+	}
+
+	subscription := subscriptions[index]
+	label := subscriptionLabel(subscription)
+	confirmed, err := ui.ConfirmDeleteSubscription(label)
+	if err != nil {
+		return err
+	}
+	if !confirmed {
+		fmt.Println("已取消删除。")
+		return nil
+	}
+
+	file := strings.TrimSpace(subscription.File)
+	if file != "" {
+		targetPath := store.ProfilePath(file)
+		if err := os.Remove(targetPath); err != nil {
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("删除订阅文件失败: %w", err)
+			}
+			fmt.Printf("订阅文件不存在，已跳过: %s\n", targetPath)
+		} else {
+			fmt.Printf("已删除订阅文件: %s\n", targetPath)
+		}
+	}
+
+	subscriptions = append(subscriptions[:index], subscriptions[index+1:]...)
+	if err := store.SaveSubscriptions(subscriptions); err != nil {
+		return err
+	}
+
+	fmt.Printf("订阅已删除: %s\n", label)
+	return nil
+}
+
+func selectAndApplySubscription(ctx context.Context) error {
+	_ = ctx
+
+	store := mihomo.NewStore()
+	if err := store.EnsureDirs(); err != nil {
+		return err
+	}
+
+	subscriptions, err := store.LoadSubscriptions()
+	if err != nil {
+		return err
+	}
+	if len(subscriptions) == 0 {
+		return fmt.Errorf("还没有订阅，请先选择“下载/更新 Clash 订阅”")
+	}
+
+	index, err := ui.SelectSubscription(subscriptionLabels(subscriptions))
+	if err != nil {
+		return err
+	}
+	if index < 0 {
+		fmt.Println("已返回。")
+		return nil
+	}
+
+	overwriteBase := false
+	if fileExists(store.BaseConfigPath()) {
+		overwriteBase, err = ui.ConfirmOverwriteDefaultConfig(store.BaseConfigPath())
+		if err != nil {
+			return err
+		}
+	}
+
+	ensureResult, err := store.EnsureDefaultFiles(overwriteBase)
+	if err != nil {
+		return err
+	}
+	printEnsureResult(ensureResult)
+
+	result, err := store.ApplySubscription(mihomo.ApplyOptions{
+		Subscription:        subscriptions[index],
+		GenerateProxyGroups: true,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("最终配置已生成: %s\n", result.FinalConfigPath)
+	fmt.Printf("订阅代理数量: %d，自定义代理数量: %d，代理组数量: %d\n", result.ProxyCount, result.CustomProxyCount, result.GroupCount)
+	for _, warning := range result.Warnings {
+		fmt.Printf("提示: %s\n", warning)
+	}
+	return nil
+}
+
+func subscriptionLabels(subscriptions []mihomo.Subscription) []string {
+	labels := make([]string, 0, len(subscriptions))
+	for _, subscription := range subscriptions {
+		labels = append(labels, subscriptionLabel(subscription))
+	}
+	return labels
+}
+
+func subscriptionLabel(subscription mihomo.Subscription) string {
+	name := strings.TrimSpace(subscription.Name)
+	if name == "" {
+		name = "未命名订阅"
+	}
+	file := strings.TrimSpace(subscription.File)
+	if file == "" {
+		file = "未知文件"
+	}
+	return fmt.Sprintf("%s（%s）", name, file)
+}
+
+func printEnsureResult(result mihomo.EnsureResult) {
+	for _, path := range result.Created {
+		fmt.Printf("已创建默认文件: %s\n", path)
+	}
+	for _, path := range result.Overwritten {
+		fmt.Printf("已覆盖默认文件: %s\n", path)
+	}
+	for _, path := range result.Skipped {
+		fmt.Printf("已保留现有文件: %s\n", path)
+	}
 }
 
 func fetchMihomoAssets(ctx context.Context) ([]github.Asset, error) {

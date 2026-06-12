@@ -1,0 +1,161 @@
+port: 7890
+socks-port: 7891
+allow-lan: true
+mode: Rule
+log-level: info
+external-controller: 127.0.0.1:9090
+proxies:
+  - {name: 未知 SS-01 | free-nodes, server: 62.146.231.112, port: 12012, type: ss, cipher: chacha20-ietf-poly1305, password: 4e287631dc4fc8fc}
+  - {name: 未知 SS-02 | free-nodes, server: 92.118.112.203, port: 41348, type: ss, cipher: chacha20-ietf-poly1305, password: 66iAPUHyyA3YxBb3DmloTuArM0IiPeY2HCoH3m}
+  - {name: 未知 SS-03 | free-nodes, server: nbmrcg0034686rw.cybervena.com, port: 50099, type: ss, cipher: chacha20-ietf-poly1305, password: 7e731ec3-f8e1-43f6-92cf-3978d14705c4}
+proxy-groups:
+  - name: 🚀 节点选择
+    type: select
+    proxies:
+      - ♻️ 自动选择
+      - 🇭🇰 香港节点
+      - 🇺🇲 美国节点
+      - ☑️ 手动切换
+      - DIRECT
+  - name: ☑️ 手动切换
+    type: select
+    proxies:
+      - 未知 SS-01 | free-nodes
+      - 未知 SS-02 | free-nodes
+   
+  - name: ♻️ 自动选择
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+    proxies:
+      - 未知 SS-01 | free-nodes
+      - 未知 SS-02 | free-nodes
+   
+  - name: 📹 油管视频
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - ♻️ 自动选择
+      - ☑️ 手动切换
+      - DIRECT
+  - name: 🎥 奈飞视频
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - ♻️ 自动选择
+      - ☑️ 手动切换
+      - DIRECT
+  - name: 🌍 国外媒体
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - ♻️ 自动选择
+      - 🎯 全球直连
+      - 未知 SS-01 | free-nodes
+      - 未知 SS-02 | free-nodes
+   
+  - name: 📲 电报信息
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - 🎯 全球直连
+      - 未知 SS-01 | free-nodes
+      - 未知 SS-02 | free-nodes
+   
+  - name: 🤖 OpenAi
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - ♻️ 自动选择
+      - 🇺🇲 美国节点
+      - ☑️ 手动切换
+      - DIRECT
+  - name: Ⓜ️ 微软服务
+    type: select
+    proxies:
+      - 🎯 全球直连
+      - 🚀 节点选择
+      - 未知 SS-01 | free-nodes
+      - 未知 SS-02 | free-nodes
+   
+  - name: 🍎 苹果服务
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - 🎯 全球直连
+      - 未知 SS-01 | free-nodes
+      - 未知 SS-02 | free-nodes
+   
+  - name: 📢 谷歌FCM
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - 🎯 全球直连
+      - ♻️ 自动选择
+      - 未知 SS-01 | free-nodes
+      - 未知 SS-02 | free-nodes
+   
+  - name: 🎯 全球直连
+    type: select
+    proxies:
+      - DIRECT
+      - 🚀 节点选择
+      - ♻️ 自动选择
+  - name: 🛑 全球拦截
+    type: select
+    proxies:
+      - REJECT
+      - DIRECT
+  - name: 🍃 应用净化
+    type: select
+    proxies:
+      - REJECT
+      - DIRECT
+  - name: 🐟 漏网之鱼
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - 🎯 全球直连
+      - ♻️ 自动选择
+      - 未知 SS-01 | free-nodes
+      - 未知 SS-02 | free-nodes
+   
+  - name: 🇭🇰 香港节点
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+    proxies:
+      - 🇭🇰 HK VLESS-158 | free-nodes
+      - 🇭🇰 HK VLESS-165 | free-nodes
+      - 🇭🇰 HK VLESS-200 | free-nodes
+      - 🇭🇰 HK VLESS-222 | free-nodes
+  - name: 🇺🇲 美国节点
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 150
+    proxies:
+      - 🇺🇸 US HY2-164 | free-nodes
+      - 🇺🇸 US VLESS-183 | free-nodes
+      - 🇺🇸 US HY2-185 | free-nodes
+      - 🇺🇸 US VLESS-186 | free-nodes
+      - 🇺🇸 US HY2-192 | free-nodes
+      - 🇺🇸 US VLESS-201 | free-nodes
+      - 🇺🇸 US VLESS-202 | free-nodes
+      - 🇺🇸 US VLESS-203 | free-nodes
+      - 🇺🇸 US VLESS-214 | free-nodes
+      - 🇺🇸 US VLESS-218 | free-nodes
+      - 🇺🇸 US VLESS-221 | free-nodes
+      - 🇺🇸 US VLESS-224 | free-nodes
+      - 🇺🇸 US HY2-225 | free-nodes
+      - 🇺🇸 US HY2-226 | free-nodes
+      - 🇺🇸 US VLESS-227 | free-nodes
+      - 🇺🇸 US HY2-228 | free-nodes
+      - 🇺🇸 US VLESS-229 | free-nodes
+      - 🇺🇸 US VLESS-230 | free-nodes
+rules:
+  - PROCESS-NAME,cfnat-android-arm64,🎯 全球直连
+  - PROCESS-NAME,cfnat-darwin-amd64,🎯 全球直连
+  - PROCESS-NAME,cfnat-darwin-arm64,🎯 全球直连

@@ -8,6 +8,8 @@ snailproxy is a small command-line installer for downloading the latest mihomo r
 - GitHub release discovery
 - Proxy-aware API access with direct fallback
 - Current platform asset filtering
+- Clash subscription download/update metadata under `mihomo/profiles`
+- Subscription selection and generated mihomo `config.yaml`
 
 Windows support is present as a placeholder in the codebase, but automated builds are currently configured for Linux only.
 
