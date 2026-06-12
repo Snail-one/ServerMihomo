@@ -12,6 +12,7 @@ import (
 
 type Action int
 type SubscriptionDownloadAction int
+type MihomoServiceAction int
 
 const (
 	ActionExit Action = iota
@@ -22,6 +23,7 @@ const (
 	ActionSelectSubscription
 	ActionLocalInstall
 	ActionVerifyLocalMihomo
+	ActionManageMihomoService
 )
 
 const (
@@ -31,29 +33,40 @@ const (
 	SubscriptionDownloadDelete
 )
 
+const (
+	MihomoServiceReturn MihomoServiceAction = iota
+	MihomoServiceStart
+	MihomoServiceRestart
+	MihomoServiceStop
+	MihomoServiceWriteProxyEnv
+	MihomoServiceClearProxyEnv
+)
+
 var stdinReader = bufio.NewReader(os.Stdin)
 
 func SelectLinuxAction() (Action, error) {
 	printMenu := func() {
 		fmt.Println("Linux 操作菜单:")
-		fmt.Println("  1. 下载并安装 mihomo 程序文件")
-		fmt.Println("  2. 创建用户并安装 mihomo systemd 服务")
-		fmt.Println("  3. 下载/更新/删除 Clash 订阅")
-		fmt.Println("  4. 选择订阅并生成 mihomo 配置")
-		fmt.Println("  5. 本地安装")
-		fmt.Println("  6. 验证本地 mihomo")
-		fmt.Println("  7. 卸载并清理 mihomo")
+		fmt.Println("  1. 本地安装")
+		fmt.Println("  2. 下载并安装 mihomo 程序文件")
+		fmt.Println("  3. 创建用户并安装 mihomo systemd 服务")
+		fmt.Println("  4. 下载/更新/删除 Clash 订阅")
+		fmt.Println("  5. 选择订阅并生成 mihomo 配置")
+		fmt.Println("  6. 管理 mihomo 服务和代理")
+		fmt.Println("  7. 验证本地 mihomo")
+		fmt.Println("  8. 卸载并清理 mihomo")
 		fmt.Println("  0. 退出")
 	}
 
-	return selectAction("[0-7]", printMenu, map[string]Action{
-		"1": ActionDownload,
-		"2": ActionInstallService,
-		"3": ActionDownloadSubscription,
-		"4": ActionSelectSubscription,
-		"5": ActionLocalInstall,
-		"6": ActionVerifyLocalMihomo,
-		"7": ActionUninstall,
+	return selectAction("[0-8]", printMenu, map[string]Action{
+		"1": ActionLocalInstall,
+		"2": ActionDownload,
+		"3": ActionInstallService,
+		"4": ActionDownloadSubscription,
+		"5": ActionSelectSubscription,
+		"6": ActionManageMihomoService,
+		"7": ActionVerifyLocalMihomo,
+		"8": ActionUninstall,
 		"0": ActionExit,
 	})
 }
@@ -61,22 +74,59 @@ func SelectLinuxAction() (Action, error) {
 func SelectWindowsAction() (Action, error) {
 	printMenu := func() {
 		fmt.Println("Windows 操作菜单:")
-		fmt.Println("  1. 下载 mihomo")
-		fmt.Println("  2. 下载/更新/删除 Clash 订阅")
-		fmt.Println("  3. 选择订阅并生成 mihomo 配置")
-		fmt.Println("  4. 本地安装")
+		fmt.Println("  1. 本地安装")
+		fmt.Println("  2. 下载 mihomo")
+		fmt.Println("  3. 下载/更新/删除 Clash 订阅")
+		fmt.Println("  4. 选择订阅并生成 mihomo 配置")
 		fmt.Println("  5. 验证本地 mihomo")
 		fmt.Println("  0. 退出")
 	}
 
 	return selectAction("[0-5]", printMenu, map[string]Action{
-		"1": ActionDownload,
-		"2": ActionDownloadSubscription,
-		"3": ActionSelectSubscription,
-		"4": ActionLocalInstall,
+		"1": ActionLocalInstall,
+		"2": ActionDownload,
+		"3": ActionDownloadSubscription,
+		"4": ActionSelectSubscription,
 		"5": ActionVerifyLocalMihomo,
 		"0": ActionExit,
 	})
+}
+
+func SelectMihomoServiceAction() (MihomoServiceAction, error) {
+	actions := map[string]MihomoServiceAction{
+		"1": MihomoServiceStart,
+		"2": MihomoServiceRestart,
+		"3": MihomoServiceStop,
+		"4": MihomoServiceWriteProxyEnv,
+		"5": MihomoServiceClearProxyEnv,
+		"0": MihomoServiceReturn,
+	}
+
+	for {
+		fmt.Println("mihomo 服务和代理管理:")
+		fmt.Println("  1. 启动 mihomo 服务")
+		fmt.Println("  2. 重启 mihomo 服务")
+		fmt.Println("  3. 停止 mihomo 服务")
+		fmt.Println("  4. 写入代理环境变量")
+		fmt.Println("  5. 清除代理环境变量")
+		fmt.Println("  0. 返回主菜单")
+		fmt.Print("请输入操作编号 [0-5]: ")
+		line, err := readLine()
+		if err != nil {
+			return MihomoServiceReturn, fmt.Errorf("读取用户输入失败: %w", err)
+		}
+
+		value := strings.TrimSpace(line)
+		if action, ok := actions[value]; ok {
+			return action, nil
+		}
+		if value == "" {
+			fmt.Println("输入不能为空，请输入菜单编号。")
+		} else {
+			fmt.Println("输入无效，请重新输入。")
+		}
+		fmt.Println()
+	}
 }
 
 func selectAction(promptRange string, printMenu func(), actions map[string]Action) (Action, error) {

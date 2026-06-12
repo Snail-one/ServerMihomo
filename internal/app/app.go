@@ -79,6 +79,8 @@ func runAction(ctx context.Context, action ui.Action) error {
 		return localInstall()
 	case ui.ActionVerifyLocalMihomo:
 		return verifyLocalMihomo(ctx)
+	case ui.ActionManageMihomoService:
+		return manageMihomoService(ctx)
 	case ui.ActionUninstall:
 		return platform.Uninstall(ctx)
 	default:
@@ -196,6 +198,37 @@ func installMihomoService(ctx context.Context) error {
 	}
 
 	return installer.InstallService(ctx)
+}
+
+func manageMihomoService(ctx context.Context) error {
+	action, err := ui.SelectMihomoServiceAction()
+	if err != nil {
+		return err
+	}
+	if action == ui.MihomoServiceReturn {
+		fmt.Println("已返回。")
+		return nil
+	}
+
+	installer, err := platform.NewInstaller()
+	if err != nil {
+		return err
+	}
+
+	switch action {
+	case ui.MihomoServiceStart:
+		return installer.StartService(ctx)
+	case ui.MihomoServiceRestart:
+		return installer.RestartService(ctx)
+	case ui.MihomoServiceStop:
+		return installer.StopService(ctx)
+	case ui.MihomoServiceWriteProxyEnv:
+		return installer.WriteProxyEnvironment(ctx)
+	case ui.MihomoServiceClearProxyEnv:
+		return installer.ClearProxyEnvironment(ctx)
+	default:
+		return fmt.Errorf("未知 mihomo 服务操作: %d", action)
+	}
 }
 
 func downloadOrUpdateSubscription(ctx context.Context) error {
