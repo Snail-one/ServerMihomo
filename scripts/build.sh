@@ -1,5 +1,5 @@
 #!/bin/sh
 set -eu
 
-go generate ./resources
+env -u GOOS -u GOARCH go generate ./resources
 go build -o snailproxy .
