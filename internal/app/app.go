@@ -13,6 +13,7 @@ import (
 	"snailproxy/internal/mihomo"
 	"snailproxy/internal/platform"
 	"snailproxy/internal/ui"
+	"snailproxy/resources"
 )
 
 const latestReleaseURL = "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest"
@@ -54,6 +55,8 @@ func runAction(ctx context.Context, action ui.Action) error {
 		return downloadOrUpdateSubscription(ctx)
 	case ui.ActionSelectSubscription:
 		return selectAndApplySubscription(ctx)
+	case ui.ActionReleaseResources:
+		return releaseLocalResourcePackage()
 	case ui.ActionUninstall:
 		return platform.Uninstall(ctx)
 	default:
@@ -369,6 +372,35 @@ func selectAndApplySubscription(ctx context.Context) error {
 	fmt.Printf("订阅代理数量: %d，自定义代理数量: %d，代理组数量: %d\n", result.ProxyCount, result.CustomProxyCount, result.GroupCount)
 	for _, warning := range result.Warnings {
 		fmt.Printf("提示: %s\n", warning)
+	}
+	return nil
+}
+
+func releaseLocalResourcePackage() error {
+	store := mihomo.NewStore()
+	overwrite, err := ui.ConfirmOverwriteResourcePackage(store.BaseDir)
+	if err != nil {
+		return err
+	}
+
+	result, err := resources.ReleaseMihomoBundle(resources.ReleaseOptions{
+		TargetDir: store.BaseDir,
+		Overwrite: overwrite,
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(result.Released) == 0 && len(result.Skipped) == 0 {
+		fmt.Printf("本地资源包没有可释放文件: resources/mihomo\n")
+		return nil
+	}
+	fmt.Printf("本地资源包已释放到: %s\n", result.TargetDir)
+	for _, path := range result.Released {
+		fmt.Printf("已释放: %s\n", path)
+	}
+	for _, path := range result.Skipped {
+		fmt.Printf("已跳过已有文件: %s\n", path)
 	}
 	return nil
 }

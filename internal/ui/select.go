@@ -20,6 +20,7 @@ const (
 	ActionUninstall
 	ActionDownloadSubscription
 	ActionSelectSubscription
+	ActionReleaseResources
 )
 
 const (
@@ -37,15 +38,17 @@ func SelectLinuxAction() (Action, error) {
 	fmt.Println("  2. 创建用户并安装 mihomo systemd 服务")
 	fmt.Println("  3. 下载/更新/删除 Clash 订阅")
 	fmt.Println("  4. 选择订阅并生成 mihomo 配置")
-	fmt.Println("  5. 卸载并清理 mihomo")
+	fmt.Println("  5. 释放本地资源包")
+	fmt.Println("  6. 卸载并清理 mihomo")
 	fmt.Println("  0. 退出")
 
-	return selectAction("[0-5]", map[string]Action{
+	return selectAction("[0-6]", map[string]Action{
 		"1": ActionDownload,
 		"2": ActionInstallService,
 		"3": ActionDownloadSubscription,
 		"4": ActionSelectSubscription,
-		"5": ActionUninstall,
+		"5": ActionReleaseResources,
+		"6": ActionUninstall,
 		"0": ActionExit,
 	})
 }
@@ -55,12 +58,14 @@ func SelectWindowsAction() (Action, error) {
 	fmt.Println("  1. 下载 mihomo")
 	fmt.Println("  2. 下载/更新/删除 Clash 订阅")
 	fmt.Println("  3. 选择订阅并生成 mihomo 配置")
+	fmt.Println("  4. 释放本地资源包")
 	fmt.Println("  0. 退出")
 
-	return selectAction("[0-3]", map[string]Action{
+	return selectAction("[0-4]", map[string]Action{
 		"1": ActionDownload,
 		"2": ActionDownloadSubscription,
 		"3": ActionSelectSubscription,
+		"4": ActionReleaseResources,
 		"0": ActionExit,
 	})
 }
@@ -116,6 +121,11 @@ func ConfirmOverwriteInstall(path string) (bool, error) {
 func ConfirmOverwriteDefaultConfig(path string) (bool, error) {
 	fmt.Printf("默认配置已存在: %s\n", path)
 	return ConfirmNoDefault("是否覆盖默认配置? [y/N]: ")
+}
+
+func ConfirmOverwriteResourcePackage(targetDir string) (bool, error) {
+	fmt.Printf("本地资源包将释放到: %s\n", targetDir)
+	return ConfirmNoDefault("遇到同名文件时是否覆盖? [y/N]: ")
 }
 
 func ConfirmDeleteSubscription(label string) (bool, error) {

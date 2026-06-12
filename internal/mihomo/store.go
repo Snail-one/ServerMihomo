@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"os"
@@ -203,7 +204,7 @@ func (s Store) EnsureDefaultFiles(overwriteBase bool) (EnsureResult, error) {
 	basePath := s.BaseConfigPath()
 	if fileExists(basePath) {
 		if overwriteBase {
-			if err := os.WriteFile(basePath, []byte(defaultMihomoConfig()), 0o644); err != nil {
+			if err := writeDefaultMihomoConfig(basePath); err != nil {
 				return result, fmt.Errorf("覆盖默认配置失败: %w", err)
 			}
 			result.Overwritten = append(result.Overwritten, basePath)
@@ -211,7 +212,7 @@ func (s Store) EnsureDefaultFiles(overwriteBase bool) (EnsureResult, error) {
 			result.Skipped = append(result.Skipped, basePath)
 		}
 	} else {
-		if err := os.WriteFile(basePath, []byte(defaultMihomoConfig()), 0o644); err != nil {
+		if err := writeDefaultMihomoConfig(basePath); err != nil {
 			return result, fmt.Errorf("创建默认配置失败: %w", err)
 		}
 		result.Created = append(result.Created, basePath)
@@ -908,23 +909,25 @@ func randomHex(byteCount int) (string, error) {
 	return hex.EncodeToString(buf), nil
 }
 
-func randomString(alphabet string, length int) string {
+func randomString(alphabet string, length int) (string, error) {
 	if length <= 0 {
-		return ""
+		return "", nil
 	}
-	buf := make([]byte, length)
-	if _, err := rand.Read(buf); err != nil {
-		fallback := time.Now().UnixNano()
-		for i := range buf {
-			index := int((fallback + int64(i)) % int64(len(alphabet)))
-			buf[i] = alphabet[index]
-		}
-	} else {
-		for i, value := range buf {
-			buf[i] = alphabet[int(value)%len(alphabet)]
-		}
+	if alphabet == "" {
+		return "", fmt.Errorf("随机字符集不能为空")
 	}
-	return string(buf)
+
+	max := big.NewInt(int64(len(alphabet)))
+	var builder strings.Builder
+	builder.Grow(length)
+	for i := 0; i < length; i++ {
+		index, err := rand.Int(rand.Reader, max)
+		if err != nil {
+			return "", fmt.Errorf("生成随机值失败: %w", err)
+		}
+		builder.WriteByte(alphabet[int(index.Int64())])
+	}
+	return builder.String(), nil
 }
 
 func fileExists(path string) bool {
@@ -932,12 +935,30 @@ func fileExists(path string) bool {
 	return err == nil && !info.IsDir()
 }
 
-func defaultMihomoConfig() string {
+func writeDefaultMihomoConfig(targetPath string) error {
+	content, err := defaultMihomoConfig()
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(targetPath, []byte(content), 0o644)
+}
+
+func defaultMihomoConfig() (string, error) {
 	const letters = "abcdefghijklmnopqrstuvwxyz"
 	const alnum = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	username := randomString(letters, 10)
-	password := randomString(alnum, 18)
-	return fmt.Sprintf(defaultMihomoConfigTemplate, username, password)
+	username, err := randomString(letters, 10)
+	if err != nil {
+		return "", err
+	}
+	password, err := randomString(alnum, 18)
+	if err != nil {
+		return "", err
+	}
+	secret, err := randomString(alnum, 100)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(defaultMihomoConfigTemplate, secret, username, password), nil
 }
 
 const defaultMihomoConfigTemplate = `mode: rule
@@ -946,7 +967,7 @@ allow-lan: false
 log-level: info
 ipv6: true
 external-controller: ''
-secret: set-your-secret
+secret: %s
 unified-delay: true
 lan-allowed-ips:
 - 127.0.0.1/32

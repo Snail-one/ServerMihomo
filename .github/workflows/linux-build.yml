@@ -53,7 +53,9 @@ jobs:
           CGO_ENABLED: "0"
           GOOS: linux
           GOARCH: ${{ matrix.goarch }}
-        run: go build -trimpath -ldflags="-s -w" -o "dist/snailproxy-linux-${GOARCH}" .
+        run: |
+          go generate ./resources
+          go build -trimpath -ldflags="-s -w" -o "dist/snailproxy-linux-${GOARCH}" .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

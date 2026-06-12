@@ -94,6 +94,31 @@ proxy-groups:
 	}
 }
 
+func TestDefaultMihomoConfigGeneratesRandomSecret(t *testing.T) {
+	first, err := defaultMihomoConfig()
+	if err != nil {
+		t.Fatalf("defaultMihomoConfig() error = %v", err)
+	}
+	second, err := defaultMihomoConfig()
+	if err != nil {
+		t.Fatalf("defaultMihomoConfig() second error = %v", err)
+	}
+
+	secret := configLineValue(t, first, "secret: ")
+	if secret == "set-your-secret" {
+		t.Fatalf("secret should not use placeholder value")
+	}
+	if len(secret) != 100 {
+		t.Fatalf("secret length = %d, want 100", len(secret))
+	}
+	if !isAlphaNumeric(secret) {
+		t.Fatalf("secret should be alphanumeric, got %q", secret)
+	}
+	if secret == configLineValue(t, second, "secret: ") {
+		t.Fatalf("secret should be regenerated for each default config")
+	}
+}
+
 func writeTestFile(t *testing.T, targetPath string, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
@@ -102,6 +127,33 @@ func writeTestFile(t *testing.T, targetPath string, content string) {
 	if err := os.WriteFile(targetPath, []byte(content), 0o644); err != nil {
 		t.Fatalf("WriteFile(%s) error = %v", targetPath, err)
 	}
+}
+
+func configLineValue(t *testing.T, content string, prefix string) string {
+	t.Helper()
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(line, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(line, prefix))
+		}
+	}
+	t.Fatalf("expected config to contain line prefix %q\n%s", prefix, content)
+	return ""
+}
+
+func isAlphaNumeric(value string) bool {
+	for _, r := range value {
+		if r >= 'a' && r <= 'z' {
+			continue
+		}
+		if r >= 'A' && r <= 'Z' {
+			continue
+		}
+		if r >= '0' && r <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func assertContains(t *testing.T, value string, needle string) {

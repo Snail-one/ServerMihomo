@@ -10,12 +10,31 @@ snailproxy is a small command-line installer for downloading the latest mihomo r
 - Current platform asset filtering
 - Clash subscription download/update metadata under `mihomo/profiles`
 - Subscription selection and generated mihomo `config.yaml`
+- Embedded local mihomo resource bundle release
 
 Windows support is present as a placeholder in the codebase, but automated builds are currently configured for Linux only.
+
+## Local Resource Bundle
+
+Files under `resources/mihomo/` are embedded into the `snailproxy` binary at build time.
+
+Run `go generate ./resources` before building to download the latest local resource files:
+
+- `geoip.metadb`
+- `geosite.dat`
+
+Choose `释放本地资源包` in the menu to copy those embedded files directly into the mihomo data directory. On Linux this is `/opt/mihomo`, so `resources/mihomo/geosite.dat` becomes `/opt/mihomo/geosite.dat`.
 
 ## Build
 
 ```bash
+sh scripts/build.sh
+```
+
+Equivalent manual commands:
+
+```bash
+go generate ./resources
 go build -o snailproxy .
 ```
 
