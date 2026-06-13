@@ -1,61 +1,125 @@
+
 # snailproxy
 
-snailproxy is a small command-line installer for downloading the latest mihomo release and installing it as a system service.
+snailproxy 是一个轻量级命令行安装工具，用于下载最新的 mihomo release 并将其安装为系统服务。
 
-## Current Scope
 
-- Linux installation with systemd
-- GitHub release discovery
-- Proxy-aware API access with direct fallback
-- Current platform asset filtering
-- Clash subscription download/update metadata under `mihomo/profiles`
-- Subscription selection and generated mihomo `config.yaml`
-- Embedded local mihomo offline install bundle
+# 当前功能范围
 
-Windows support is present as a placeholder in the codebase, but automated builds are currently configured for Linux only.
+* Linux + systemd 安装支持
+* GitHub Release 版本发现
+* 支持代理访问 API（失败自动切换直连）
+* 当前平台安装包自动过滤
+* Clash 订阅下载 / 更新元数据（存储在 `mihomo/profiles`）
+* 订阅选择与自动生成 `mihomo config.yaml`
+* 内嵌本地离线安装包
 
-## Local Install Bundle
+---
 
-Files under `resources/mihomo/` are embedded into the `snailproxy` binary at build time.
+# 本地安装包（Local Install Bundle）
 
-Run `go generate ./resources` before building to download the latest offline install resources:
+`resources/mihomo/` 目录下的文件会在构建时被嵌入到 `snailproxy` 二进制文件中。
 
-- `geoip.metadb`
-- `geosite.dat`
-- `metacubexd/`
-- Latest `mihomo-windows-amd64-v3-v*.zip`
-- Latest `mihomo-linux-amd64-v3-v*.gz`
-- Latest `mihomo-linux-arm64-v*.gz`
+在构建前需要运行：
 
-The mihomo package downloader uses GitHub API metadata so downloaded packages can be checked with the API `sha256` digest. If API metadata cannot be fetched, resource generation fails.
-Set `MIHOMO_RELEASE_CHANNEL=alpha` during `go generate ./resources` to build the offline bundle from `Prerelease-Alpha` instead of the stable latest release.
+```bash
+go generate ./resources
+```
 
-Choose `本地安装` in the menu to install from those embedded files without network access. On Linux this releases the bundle into `/opt/mihomo` and extracts the bundled mihomo package into `/opt/mihomo/mihomo`.
+用于下载最新的离线安装资源，包括：
 
-Choose `验证本地 mihomo` to verify the released package with the bundled manifest sha256, compare the extracted binary with the current local mihomo file, and optionally warn if a newer release exists.
+* `geoip.metadb`
+* `geosite.dat`
+* `metacubexd/`
+* 最新 `mihomo-windows-amd64-v3-v*.zip`
+* 最新 `mihomo-linux-amd64-v3-v*.gz`
+* 最新 `mihomo-linux-arm64-v*.gz`
 
-## Build
+---
+
+# mihomo 包下载机制
+
+安装包下载器使用 GitHub API 元数据，因此下载的文件可以通过 API 提供的 `sha256` 进行校验。
+
+如果无法获取 GitHub API 元数据，则资源生成会失败。
+
+---
+
+# Alpha 版本支持
+
+在执行 `go generate ./resources` 时，可以设置：
+
+```bash
+MIHOMO_RELEASE_CHANNEL=alpha
+```
+
+这样会从 `Prerelease-Alpha` 渠道构建离线资源，而不是稳定版 latest。
+
+---
+
+# 本地安装模式
+
+在菜单中选择：
+
+> 本地安装
+
+会使用内嵌资源进行离线安装（无需网络）。
+
+在 Linux 上会执行：
+
+* 解压到 `/opt/mihomo`
+* 将 mihomo 二进制释放到：
+
+  ```
+  /opt/mihomo/mihomo
+  ```
+
+---
+
+# 本地 mihomo 校验
+
+选择：
+
+> 验证本地 mihomo
+
+会执行以下操作：
+
+* 使用内嵌 manifest 的 sha256 校验安装包
+* 对比当前系统中的 mihomo 文件
+* 提示是否有新版本可用
+
+---
+
+# 构建方法
 
 ```bash
 sh scripts/build.sh
 ```
 
-Equivalent manual commands:
+---
+
+# 等价手动构建方式
 
 ```bash
 go generate ./resources
 go build -o snailproxy .
 ```
 
-## Run
+---
 
-Linux installation writes to system paths and manages a systemd service, so run it with sudo:
+# 运行方式
+
+Linux 安装会写入系统路径并管理 systemd 服务，因此需要 root 权限运行：
 
 ```bash
 sudo ./snailproxy
 ```
 
-To preserve proxy environment variables when using sudo:
+---
+
+# 保留代理环境变量运行（重要）
+
+如果你使用代理，需要保留环境变量：
 
 ```bash
 sudo -E ./snailproxy
