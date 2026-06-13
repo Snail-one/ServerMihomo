@@ -1,8 +1,10 @@
+---
 
 # snailproxy
 
 snailproxy 是一个轻量级命令行安装工具，用于下载最新的 mihomo release 并将其安装为系统服务。
 
+---
 
 # 当前功能范围
 
