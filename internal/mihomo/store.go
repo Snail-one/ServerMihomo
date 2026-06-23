@@ -1091,7 +1091,6 @@ const defaultRules = `rules:
 - PROCESS-NAME,OneDrive.exe,OneDrive
 - PROCESS-NAME,OneDrive.Sync.Service.exe,OneDrive
 - PROCESS-NAME,FileCoAuth.exe,OneDrive
-- PROCESS-NAME,ollama.exe,Ollama
 - PROCESS-NAME,Spotify.exe,Spotify
 - PROCESS-NAME,steam.exe,Steam
 - PROCESS-NAME,steamwebhelper.exe,Steam
@@ -1101,6 +1100,7 @@ const defaultRules = `rules:
 - GEOSITE,epicgames,Epic
 - GEOSITE,blizzard,Battle
 - GEOSITE,steam,Steam
+- GEOSITE,spotify,Spotify
 - GEOSITE,kaspersky,Kaspersky
 - GEOSITE,huggingface,Huggingface
 - GEOSITE,openai,OpenAI
@@ -1114,6 +1114,7 @@ const defaultRules = `rules:
 - GEOSITE,google,Google
 - GEOSITE,github,GitHub
 - GEOSITE,microsoft,Microsoft
+- GEOSITE,onedrive,OneDrive
 - GEOSITE,apple,Apple
 - GEOSITE,pixiv,Pixiv
 - GEOSITE,bilibili,Bilibili
