@@ -962,7 +962,7 @@ func defaultMihomoConfig() (string, error) {
 }
 
 const defaultMihomoConfigTemplate = `mode: rule
-mixed-port: 57913
+mixed-port: 52013
 allow-lan: false
 log-level: error
 ipv6: true
