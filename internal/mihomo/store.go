@@ -964,7 +964,7 @@ func defaultMihomoConfig() (string, error) {
 const defaultMihomoConfigTemplate = `mode: rule
 mixed-port: 57913
 allow-lan: false
-log-level: info
+log-level: error
 ipv6: true
 external-controller: 127.0.0.1:57912
 secret: %s
