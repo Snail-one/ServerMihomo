@@ -966,7 +966,7 @@ mixed-port: 52013
 allow-lan: false
 log-level: error
 ipv6: true
-external-controller: 127.0.0.1:57912
+external-controller: 127.0.0.1:52014
 secret: %s
 external-ui: metacubexd
 external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
