@@ -971,9 +971,22 @@ secret: %s
 external-ui: metacubexd
 external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
 unified-delay: true
-lan-allowed-ips:8
+authentication:
+- %s:%s
+lan-allowed-ips:
 - 127.0.0.1/32
 - 192.168.31.0/24
+skip-auth-prefixes:
+- 127.0.0.1/32
+- 192.168.31.0/24
+external-controller-cors:
+  allow-private-network: true
+  allow-origins:
+  - tauri://localhost
+  - http://tauri.localhost
+  - https://yacd.metacubex.one
+  - https://metacubex.github.io
+  - https://board.zash.run.place
 tun:
   auto-detect-interface: true
   auto-route: true
@@ -987,19 +1000,6 @@ tun:
   enable: false
 profile:
   store-selected: true
-skip-auth-prefixes:
-- 127.0.0.1/32
-- 192.168.31.0/24
-external-controller-cors:
-  allow-private-network: true
-  allow-origins:
-  - tauri://localhost
-  - http://tauri.localhost
-  - https://yacd.metacubex.one
-  - https://metacubex.github.io
-  - https://board.zash.run.place
-authentication:
-- %s:%s
 dns:
   default-nameserver:
   - system
