@@ -11,6 +11,7 @@
 /latest.json
 
 # Go
+.cache/
 *.test
 *.prof
 *.cover

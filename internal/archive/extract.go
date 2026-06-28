@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -128,12 +127,9 @@ func writeExecutable(in io.Reader, targetPath string) (string, error) {
 
 func isMihomoBinary(name string) bool {
 	base := strings.ToLower(filepath.Base(name))
-	return base == "mihomo" || base == "mihomo.exe" || strings.HasPrefix(base, "mihomo-")
+	return base == "mihomo" || strings.HasPrefix(base, "mihomo-")
 }
 
 func binaryName() string {
-	if runtime.GOOS == "windows" {
-		return "mihomo.exe"
-	}
 	return "mihomo"
 }

@@ -89,8 +89,6 @@ func runAction(ctx context.Context, action ui.Action) error {
 		return installMihomoService(ctx)
 	case ui.ActionDownloadSubscription:
 		return downloadOrUpdateSubscription(ctx)
-	case ui.ActionSelectSubscription:
-		return selectAndApplySubscription(ctx)
 	case ui.ActionLocalInstall:
 		return localInstall()
 	case ui.ActionVerifyLocalMihomo:
@@ -105,14 +103,10 @@ func runAction(ctx context.Context, action ui.Action) error {
 }
 
 func selectPlatformAction() (ui.Action, error) {
-	switch runtime.GOOS {
-	case "linux":
-		return ui.SelectLinuxAction()
-	case "windows":
-		return ui.SelectWindowsAction()
-	default:
+	if runtime.GOOS != "linux" {
 		return ui.ActionExit, fmt.Errorf("暂不支持当前系统: %s", runtime.GOOS)
 	}
+	return ui.SelectLinuxAction()
 }
 
 func downloadAndPrepareMihomo(ctx context.Context) error {
@@ -160,9 +154,6 @@ func downloadAndPrepareMihomo(ctx context.Context) error {
 }
 
 func printLocalMihomoVersion(ctx context.Context) {
-	if runtime.GOOS != "linux" {
-		return
-	}
 	if !fileExists(linuxInstalledBinary) {
 		fmt.Printf("当前本地版本: 未安装（%s 不存在）\n", linuxInstalledBinary)
 		return
@@ -178,7 +169,7 @@ func printLocalMihomoVersion(ctx context.Context) {
 }
 
 func checkInstalledBinary() (bool, bool, error) {
-	if runtime.GOOS != "linux" || !fileExists(linuxInstalledBinary) {
+	if !fileExists(linuxInstalledBinary) {
 		return true, false, nil
 	}
 
@@ -195,10 +186,6 @@ func checkInstalledBinary() (bool, bool, error) {
 }
 
 func prepareMihomoBinaryIfNeeded(ctx context.Context, filePath string, assetName string, overwrite bool) error {
-	if runtime.GOOS != "linux" {
-		return nil
-	}
-
 	installer, err := platform.NewInstaller()
 	if err != nil {
 		return err
@@ -392,61 +379,6 @@ func deleteExistingSubscription(store mihomo.Store, subscriptions []mihomo.Subsc
 	return nil
 }
 
-func selectAndApplySubscription(ctx context.Context) error {
-	_ = ctx
-
-	store := mihomo.NewStore()
-	if err := store.EnsureDirs(); err != nil {
-		return err
-	}
-
-	subscriptions, err := store.LoadSubscriptions()
-	if err != nil {
-		return err
-	}
-	if len(subscriptions) == 0 {
-		return fmt.Errorf("还没有订阅，请先选择“下载/更新 Clash 订阅”")
-	}
-
-	index, err := ui.SelectSubscription(subscriptionLabels(subscriptions))
-	if err != nil {
-		return err
-	}
-	if index < 0 {
-		fmt.Println("已返回。")
-		return nil
-	}
-
-	overwriteBase := false
-	if fileExists(store.BaseConfigPath()) {
-		overwriteBase, err = ui.ConfirmOverwriteDefaultConfig(store.BaseConfigPath())
-		if err != nil {
-			return err
-		}
-	}
-
-	ensureResult, err := store.EnsureDefaultFiles(overwriteBase)
-	if err != nil {
-		return err
-	}
-	printEnsureResult(ensureResult)
-
-	result, err := store.ApplySubscription(mihomo.ApplyOptions{
-		Subscription:        subscriptions[index],
-		GenerateProxyGroups: true,
-	})
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("最终配置已生成: %s\n", result.FinalConfigPath)
-	fmt.Printf("订阅代理数量: %d，自定义代理数量: %d，代理组数量: %d\n", result.ProxyCount, result.CustomProxyCount, result.GroupCount)
-	for _, warning := range result.Warnings {
-		fmt.Printf("提示: %s\n", warning)
-	}
-	return nil
-}
-
 func localInstall() error {
 	store := mihomo.NewStore()
 	if err := store.EnsureDirs(); err != nil {
@@ -509,10 +441,8 @@ func installBundledMihomoBinary(baseDir string, overwrite bool) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("解压内置 mihomo 安装包失败: %w", err)
 	}
-	if runtime.GOOS == "linux" {
-		if err := os.Chmod(binaryPath, 0o770); err != nil {
-			return "", fmt.Errorf("设置 mihomo 程序权限失败: %w", err)
-		}
+	if err := os.Chmod(binaryPath, 0o770); err != nil {
+		return "", fmt.Errorf("设置 mihomo 程序权限失败: %w", err)
 	}
 	return binaryPath, nil
 }
@@ -534,8 +464,6 @@ func bundledMihomoPackagePath(baseDir string) (string, error) {
 
 func bundledMihomoPackagePattern() string {
 	switch runtime.GOOS + "/" + runtime.GOARCH {
-	case "windows/amd64":
-		return "mihomo-windows-amd64-v3-v*.zip"
 	case "linux/amd64":
 		return "mihomo-linux-amd64-v3-v*.gz"
 	case "linux/arm64":
@@ -546,9 +474,6 @@ func bundledMihomoPackagePattern() string {
 }
 
 func mihomoBinaryName() string {
-	if runtime.GOOS == "windows" {
-		return "mihomo.exe"
-	}
 	return "mihomo"
 }
 
@@ -675,18 +600,6 @@ func subscriptionLabel(subscription mihomo.Subscription) string {
 		file = "未知文件"
 	}
 	return fmt.Sprintf("%s（%s）", name, file)
-}
-
-func printEnsureResult(result mihomo.EnsureResult) {
-	for _, path := range result.Created {
-		fmt.Printf("已创建默认文件: %s\n", path)
-	}
-	for _, path := range result.Overwritten {
-		fmt.Printf("已覆盖默认文件: %s\n", path)
-	}
-	for _, path := range result.Skipped {
-		fmt.Printf("已保留现有文件: %s\n", path)
-	}
 }
 
 func fetchMihomoAssets(ctx context.Context) ([]github.Asset, error) {

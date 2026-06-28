@@ -20,7 +20,6 @@ const (
 	ActionInstallService
 	ActionUninstall
 	ActionDownloadSubscription
-	ActionSelectSubscription
 	ActionLocalInstall
 	ActionVerifyLocalMihomo
 	ActionManageMihomoService
@@ -51,43 +50,20 @@ func SelectLinuxAction() (Action, error) {
 		fmt.Println("  2. 下载并安装 mihomo 程序文件")
 		fmt.Println("  3. 创建用户并安装 mihomo systemd 服务")
 		fmt.Println("  4. 下载/更新/删除 Clash 订阅")
-		fmt.Println("  5. 选择订阅并生成 mihomo 配置")
-		fmt.Println("  6. 管理 mihomo 服务和代理")
-		fmt.Println("  7. 验证本地 mihomo")
-		fmt.Println("  8. 卸载并清理 mihomo")
+		fmt.Println("  5. 管理 mihomo 服务和代理")
+		fmt.Println("  6. 验证本地 mihomo")
+		fmt.Println("  7. 卸载并清理 mihomo")
 		fmt.Println("  0. 退出")
 	}
 
-	return selectAction("[0-8]", printMenu, map[string]Action{
+	return selectAction("[0-7]", printMenu, map[string]Action{
 		"1": ActionLocalInstall,
 		"2": ActionDownload,
 		"3": ActionInstallService,
 		"4": ActionDownloadSubscription,
-		"5": ActionSelectSubscription,
-		"6": ActionManageMihomoService,
-		"7": ActionVerifyLocalMihomo,
-		"8": ActionUninstall,
-		"0": ActionExit,
-	})
-}
-
-func SelectWindowsAction() (Action, error) {
-	printMenu := func() {
-		fmt.Println("Windows 操作菜单:")
-		fmt.Println("  1. 本地安装")
-		fmt.Println("  2. 下载 mihomo")
-		fmt.Println("  3. 下载/更新/删除 Clash 订阅")
-		fmt.Println("  4. 选择订阅并生成 mihomo 配置")
-		fmt.Println("  5. 验证本地 mihomo")
-		fmt.Println("  0. 退出")
-	}
-
-	return selectAction("[0-5]", printMenu, map[string]Action{
-		"1": ActionLocalInstall,
-		"2": ActionDownload,
-		"3": ActionDownloadSubscription,
-		"4": ActionSelectSubscription,
-		"5": ActionVerifyLocalMihomo,
+		"5": ActionManageMihomoService,
+		"6": ActionVerifyLocalMihomo,
+		"7": ActionUninstall,
 		"0": ActionExit,
 	})
 }

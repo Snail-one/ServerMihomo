@@ -196,7 +196,6 @@ func selectedMihomoSource() mihomoDownloadSource {
 func mihomoAssetNames(tagName string) []string {
 	version := strings.TrimPrefix(strings.TrimSpace(tagName), "v")
 	return []string{
-		"mihomo-windows-amd64-v3-v" + version + ".zip",
 		"mihomo-linux-amd64-v3-v" + version + ".gz",
 		"mihomo-linux-arm64-v" + version + ".gz",
 	}

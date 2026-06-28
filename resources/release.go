@@ -108,7 +108,7 @@ func copyEmbeddedFile(source fs.FS, sourcePath string, targetPath string, mode f
 func releaseFileMode(relativePath string) fs.FileMode {
 	base := path.Base(relativePath)
 	switch {
-	case base == "mihomo" || base == "mihomo.exe":
+	case base == "mihomo":
 		return 0o770
 	case strings.HasSuffix(base, ".sh"):
 		return 0o755

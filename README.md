@@ -13,7 +13,6 @@ snailproxy 是一个轻量级命令行安装工具，用于下载最新的 mihom
 * 支持代理访问 API（失败自动切换直连）
 * 当前平台安装包自动过滤
 * Clash 订阅下载 / 更新元数据（存储在 `mihomo/profiles`）
-* 订阅选择与自动生成 `mihomo config.yaml`
 * 内嵌本地离线安装包
 
 ---
@@ -22,7 +21,7 @@ snailproxy 是一个轻量级命令行安装工具，用于下载最新的 mihom
 
 `resources/mihomo/` 目录下的文件会在构建时被嵌入到 `snailproxy` 二进制文件中。
 
-在构建前需要运行：
+如果需要刷新离线安装资源，在构建前运行：
 
 ```bash
 go generate ./resources
@@ -33,9 +32,20 @@ go generate ./resources
 * `geoip.metadb`
 * `geosite.dat`
 * `metacubexd/`
-* 最新 `mihomo-windows-amd64-v3-v*.zip`
 * 最新 `mihomo-linux-amd64-v3-v*.gz`
 * 最新 `mihomo-linux-arm64-v*.gz`
+
+普通二进制构建可以直接运行：
+
+```bash
+scripts/build.sh
+```
+
+如果需要重新下载并内嵌最新离线安装资源，运行：
+
+```bash
+scripts/build.sh --generate
+```
 
 ---
 

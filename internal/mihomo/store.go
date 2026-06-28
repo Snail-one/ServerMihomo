@@ -14,7 +14,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -72,15 +71,7 @@ func NewStore() Store {
 }
 
 func DefaultBaseDir() string {
-	switch runtime.GOOS {
-	case "linux":
-		return "/opt/mihomo"
-	case "windows":
-		if programData := os.Getenv("ProgramData"); programData != "" {
-			return filepath.Join(programData, "mihomo")
-		}
-	}
-	return filepath.Join(os.TempDir(), "mihomo")
+	return "/opt/mihomo"
 }
 
 func (s Store) ProfilesDir() string {
