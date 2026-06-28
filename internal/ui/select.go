@@ -20,6 +20,7 @@ const (
 	ActionInstallService
 	ActionUninstall
 	ActionDownloadSubscription
+	ActionApplySubscription
 	ActionLocalInstall
 	ActionVerifyLocalMihomo
 	ActionManageMihomoService
@@ -29,6 +30,7 @@ const (
 	SubscriptionDownloadReturn SubscriptionDownloadAction = iota
 	SubscriptionDownloadUpdate
 	SubscriptionDownloadCreate
+	SubscriptionDownloadModify
 	SubscriptionDownloadDelete
 )
 
@@ -49,21 +51,23 @@ func SelectLinuxAction() (Action, error) {
 		fmt.Println("  1. 本地安装")
 		fmt.Println("  2. 下载并安装 mihomo 程序文件")
 		fmt.Println("  3. 创建用户并安装 mihomo systemd 服务")
-		fmt.Println("  4. 下载/更新/删除 Clash 订阅")
-		fmt.Println("  5. 管理 mihomo 服务和代理")
-		fmt.Println("  6. 验证本地 mihomo")
-		fmt.Println("  7. 卸载并清理 mihomo")
+		fmt.Println("  4. 下载/更新/修改/删除 Clash 订阅")
+		fmt.Println("  5. 选择订阅并应用 mihomo 配置")
+		fmt.Println("  6. 管理 mihomo 服务和代理")
+		fmt.Println("  7. 验证本地 mihomo")
+		fmt.Println("  8. 卸载并清理 mihomo")
 		fmt.Println("  0. 退出")
 	}
 
-	return selectAction("[0-7]", printMenu, map[string]Action{
+	return selectAction("[0-8]", printMenu, map[string]Action{
 		"1": ActionLocalInstall,
 		"2": ActionDownload,
 		"3": ActionInstallService,
 		"4": ActionDownloadSubscription,
-		"5": ActionManageMihomoService,
-		"6": ActionVerifyLocalMihomo,
-		"7": ActionUninstall,
+		"5": ActionApplySubscription,
+		"6": ActionManageMihomoService,
+		"7": ActionVerifyLocalMihomo,
+		"8": ActionUninstall,
 		"0": ActionExit,
 	})
 }
@@ -201,17 +205,20 @@ func ConfirmNoDefault(prompt string) (bool, error) {
 }
 
 func SelectSubscriptionDownloadTarget(labels []string) (int, SubscriptionDownloadAction, error) {
-	fmt.Println("订阅下载/更新/删除:")
+	fmt.Println("订阅下载/更新/修改/删除:")
 	for i, label := range labels {
 		fmt.Printf("  %d. 更新 %s\n", i+1, label)
 	}
 	newOption := len(labels) + 1
 	fmt.Printf("  %d. 手动下载新的订阅\n", newOption)
+	modifyOption := 0
 	deleteOption := 0
 	maxOption := newOption
 	if len(labels) > 0 {
-		deleteOption = len(labels) + 2
+		modifyOption = len(labels) + 2
+		deleteOption = len(labels) + 3
 		maxOption = deleteOption
+		fmt.Printf("  %d. 修改已有订阅\n", modifyOption)
 		fmt.Printf("  %d. 删除已有订阅\n", deleteOption)
 	}
 	fmt.Println("  0. 返回")
@@ -233,6 +240,9 @@ func SelectSubscriptionDownloadTarget(labels []string) (int, SubscriptionDownloa
 		}
 		if index == newOption {
 			return -1, SubscriptionDownloadCreate, nil
+		}
+		if modifyOption > 0 && index == modifyOption {
+			return -1, SubscriptionDownloadModify, nil
 		}
 		if deleteOption > 0 && index == deleteOption {
 			return -1, SubscriptionDownloadDelete, nil
@@ -268,13 +278,24 @@ func SelectSubscription(labels []string) (int, error) {
 }
 
 func PromptSubscriptionURL() (string, error) {
+	return PromptSubscriptionURLDefault("")
+}
+
+func PromptSubscriptionURLDefault(defaultURL string) (string, error) {
 	for {
-		fmt.Print("请输入 Clash 订阅链接: ")
+		if strings.TrimSpace(defaultURL) == "" {
+			fmt.Print("请输入 Clash 订阅链接: ")
+		} else {
+			fmt.Printf("请输入 Clash 订阅链接 [%s]: ", defaultURL)
+		}
 		line, err := readLine()
 		if err != nil {
 			return "", fmt.Errorf("读取用户输入失败: %w", err)
 		}
 		value := strings.TrimSpace(line)
+		if value == "" {
+			value = strings.TrimSpace(defaultURL)
+		}
 		if value == "" {
 			fmt.Println("订阅链接不能为空。")
 			continue

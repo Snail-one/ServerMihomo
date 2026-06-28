@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -20,6 +21,8 @@ import (
 	"time"
 
 	"snailproxy/internal/progress"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -306,6 +309,27 @@ func (s Store) ApplySubscription(options ApplyOptions) (ApplyResult, error) {
 	return result, nil
 }
 
+func (s Store) CopySubscriptionToFinalConfig(subscription Subscription) (string, error) {
+	subscriptionFile := filepath.Base(subscription.File)
+	if strings.TrimSpace(subscriptionFile) == "" || subscriptionFile == "." {
+		return "", fmt.Errorf("订阅 %s 缺少实际文件名", subscription.Name)
+	}
+
+	subscriptionPath := s.ProfilePath(subscriptionFile)
+	data, err := os.ReadFile(subscriptionPath)
+	if err != nil {
+		return "", fmt.Errorf("读取订阅文件 %s 失败: %w", subscriptionPath, err)
+	}
+	if err := ValidateSubscriptionData(data); err != nil {
+		return "", err
+	}
+
+	if err := os.WriteFile(s.FinalConfigPath(), data, 0o644); err != nil {
+		return "", fmt.Errorf("写入最终配置失败: %w", err)
+	}
+	return s.FinalConfigPath(), nil
+}
+
 func DownloadSubscription(ctx context.Context, rawURL string, targetPath string) error {
 	parsedURL, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil {
@@ -325,7 +349,41 @@ func DownloadSubscription(ctx context.Context, rawURL string, targetPath string)
 	}
 	req.Header.Set("User-Agent", "snailproxy-subscription")
 
-	client := &http.Client{Timeout: 90 * time.Second}
+	directTransport := http.DefaultTransport.(*http.Transport).Clone()
+	directTransport.Proxy = nil
+	directClient := &http.Client{
+		Timeout:   90 * time.Second,
+		Transport: directTransport,
+	}
+
+	fmt.Println("当前订阅下载方式: 直连")
+	err = downloadSubscriptionWithClient(directClient, req, targetPath)
+	if err != nil {
+		var validationErr subscriptionValidationError
+		if errors.As(err, &validationErr) {
+			return err
+		}
+
+		proxyURL, proxyErr := http.ProxyFromEnvironment(req)
+		if proxyErr != nil {
+			return fmt.Errorf("直连下载订阅失败: %w；代理配置无效: %v", err, proxyErr)
+		}
+		if proxyURL == nil {
+			return fmt.Errorf("直连下载订阅失败，且未配置代理: %w", err)
+		}
+
+		fmt.Printf("直连下载订阅失败，切换为代理 %s: %v\n", proxyURL.String(), err)
+		fmt.Printf("当前订阅下载方式: 使用代理 %s\n", proxyURL.String())
+		proxyClient := &http.Client{Timeout: 90 * time.Second}
+		if proxyErr := downloadSubscriptionWithClient(proxyClient, req, targetPath); proxyErr != nil {
+			return fmt.Errorf("代理下载订阅失败: %w", proxyErr)
+		}
+		return nil
+	}
+	return nil
+}
+
+func downloadSubscriptionWithClient(client *http.Client, req *http.Request, targetPath string) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("下载订阅失败: %w", err)
@@ -357,6 +415,15 @@ func DownloadSubscription(ctx context.Context, rawURL string, targetPath string)
 		_ = os.Remove(downloadPath)
 		return fmt.Errorf("订阅下载内容为空")
 	}
+	data, err := os.ReadFile(downloadPath)
+	if err != nil {
+		_ = os.Remove(downloadPath)
+		return fmt.Errorf("读取订阅下载文件失败: %w", err)
+	}
+	if err := ValidateSubscriptionData(data); err != nil {
+		_ = os.Remove(downloadPath)
+		return subscriptionValidationError{err: err}
+	}
 
 	if err := os.Rename(downloadPath, targetPath); err != nil {
 		_ = os.Remove(downloadPath)
@@ -364,6 +431,49 @@ func DownloadSubscription(ctx context.Context, rawURL string, targetPath string)
 	}
 
 	fmt.Printf("订阅下载完成: %s (%d bytes)\n", targetPath, written)
+	return nil
+}
+
+type subscriptionValidationError struct {
+	err error
+}
+
+func (e subscriptionValidationError) Error() string {
+	return e.err.Error()
+}
+
+func (e subscriptionValidationError) Unwrap() error {
+	return e.err
+}
+
+func ValidateSubscriptionData(data []byte) error {
+	var root map[string]any
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return fmt.Errorf("订阅 YAML 无效: %w", err)
+	}
+
+	proxiesValue, ok := root["proxies"]
+	if !ok {
+		return fmt.Errorf("订阅 YAML 缺少 proxies 字段")
+	}
+	proxies, ok := proxiesValue.([]any)
+	if !ok {
+		return fmt.Errorf("订阅 YAML 的 proxies 必须是列表")
+	}
+	if len(proxies) == 0 {
+		return fmt.Errorf("订阅 YAML 的 proxies 不能为空")
+	}
+
+	proxyLines, err := extractTopLevelListBlock(string(data), "proxies")
+	if err != nil {
+		return fmt.Errorf("解析订阅 proxies 失败: %w", err)
+	}
+	if len(nonEmptyLines(proxyLines)) == 0 {
+		return fmt.Errorf("订阅 YAML 的 proxies 内容为空")
+	}
+	if len(proxyNamesFromBlockLines(proxyLines)) == 0 {
+		return fmt.Errorf("订阅 YAML 的 proxies 中没有可用 name")
+	}
 	return nil
 }
 

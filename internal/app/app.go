@@ -89,6 +89,8 @@ func runAction(ctx context.Context, action ui.Action) error {
 		return installMihomoService(ctx)
 	case ui.ActionDownloadSubscription:
 		return downloadOrUpdateSubscription(ctx)
+	case ui.ActionApplySubscription:
+		return selectAndApplySubscription(ctx)
 	case ui.ActionLocalInstall:
 		return localInstall()
 	case ui.ActionVerifyLocalMihomo:
@@ -258,6 +260,8 @@ func downloadOrUpdateSubscription(ctx context.Context) error {
 		return downloadNewSubscription(ctx, store, subscriptions)
 	case ui.SubscriptionDownloadDelete:
 		return deleteExistingSubscription(store, subscriptions)
+	case ui.SubscriptionDownloadModify:
+		return modifyExistingSubscription(ctx, store, subscriptions)
 	case ui.SubscriptionDownloadUpdate:
 		return updateExistingSubscription(ctx, store, subscriptions, index)
 	default:
@@ -331,6 +335,62 @@ func updateExistingSubscription(ctx context.Context, store mihomo.Store, subscri
 	return nil
 }
 
+func modifyExistingSubscription(ctx context.Context, store mihomo.Store, subscriptions []mihomo.Subscription) error {
+	if len(subscriptions) == 0 {
+		fmt.Println("没有可修改的订阅。")
+		return nil
+	}
+
+	index, err := ui.SelectSubscription(subscriptionLabels(subscriptions))
+	if err != nil {
+		return err
+	}
+	if index < 0 {
+		fmt.Println("已返回。")
+		return nil
+	}
+
+	subscription := subscriptions[index]
+	subscriptionURL, err := ui.PromptSubscriptionURLDefault(subscription.URL)
+	if err != nil {
+		return err
+	}
+
+	fileName := strings.TrimSpace(subscription.File)
+	if fileName == "" {
+		fileName, err = store.NewSubscriptionFileName()
+		if err != nil {
+			return err
+		}
+	}
+
+	defaultName := strings.TrimSpace(subscription.Name)
+	if defaultName == "" {
+		defaultName = mihomo.DefaultSubscriptionName(subscriptionURL, fileName)
+	}
+	name, err := ui.PromptSubscriptionName(defaultName)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("正在使用修改后的链接下载订阅: %s（%s）\n", name, filepath.Base(fileName))
+	if err := mihomo.DownloadSubscription(ctx, subscriptionURL, store.ProfilePath(fileName)); err != nil {
+		return err
+	}
+
+	subscription.Name = name
+	subscription.File = filepath.Base(fileName)
+	subscription.URL = subscriptionURL
+	subscriptions[index] = subscription
+
+	if err := store.SaveSubscriptions(subscriptions); err != nil {
+		return err
+	}
+
+	fmt.Printf("订阅已修改: %s（%s）\n", subscription.Name, subscription.File)
+	return nil
+}
+
 func deleteExistingSubscription(store mihomo.Store, subscriptions []mihomo.Subscription) error {
 	if len(subscriptions) == 0 {
 		fmt.Println("没有可删除的订阅。")
@@ -377,6 +437,44 @@ func deleteExistingSubscription(store mihomo.Store, subscriptions []mihomo.Subsc
 
 	fmt.Printf("订阅已删除: %s\n", label)
 	return nil
+}
+
+func selectAndApplySubscription(ctx context.Context) error {
+	store := mihomo.NewStore()
+	if err := store.EnsureDirs(); err != nil {
+		return err
+	}
+
+	subscriptions, err := store.LoadSubscriptions()
+	if err != nil {
+		return err
+	}
+	if len(subscriptions) == 0 {
+		return fmt.Errorf("还没有订阅，请先选择“下载/更新/修改/删除 Clash 订阅”")
+	}
+
+	index, err := ui.SelectSubscription(subscriptionLabels(subscriptions))
+	if err != nil {
+		return err
+	}
+	if index < 0 {
+		fmt.Println("已返回。")
+		return nil
+	}
+
+	finalConfigPath, err := store.CopySubscriptionToFinalConfig(subscriptions[index])
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("订阅配置已原样应用到: %s\n", finalConfigPath)
+
+	installer, err := platform.NewInstaller()
+	if err != nil {
+		return err
+	}
+	fmt.Println("正在重启 mihomo 服务以应用配置...")
+	return installer.RestartService(ctx)
 }
 
 func localInstall() error {

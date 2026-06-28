@@ -30,3 +30,38 @@ func TestSelectActionReprintsMenuAfterInvalidInput(t *testing.T) {
 		t.Fatalf("menuPrints = %d, want 3", menuPrints)
 	}
 }
+
+func TestSelectSubscriptionDownloadTargetSupportsModifyOption(t *testing.T) {
+	originalReader := stdinReader
+	stdinReader = bufio.NewReader(strings.NewReader("3\n"))
+	t.Cleanup(func() {
+		stdinReader = originalReader
+	})
+
+	index, action, err := SelectSubscriptionDownloadTarget([]string{"测试订阅（subscription.yaml）"})
+	if err != nil {
+		t.Fatalf("SelectSubscriptionDownloadTarget() error = %v", err)
+	}
+	if index != -1 {
+		t.Fatalf("index = %d, want -1", index)
+	}
+	if action != SubscriptionDownloadModify {
+		t.Fatalf("action = %d, want SubscriptionDownloadModify", action)
+	}
+}
+
+func TestPromptSubscriptionURLDefaultUsesDefaultForEmptyInput(t *testing.T) {
+	originalReader := stdinReader
+	stdinReader = bufio.NewReader(strings.NewReader("\n"))
+	t.Cleanup(func() {
+		stdinReader = originalReader
+	})
+
+	url, err := PromptSubscriptionURLDefault("https://example.com/sub")
+	if err != nil {
+		t.Fatalf("PromptSubscriptionURLDefault() error = %v", err)
+	}
+	if url != "https://example.com/sub" {
+		t.Fatalf("url = %q, want default", url)
+	}
+}

@@ -12,7 +12,9 @@ snailproxy 是一个轻量级命令行安装工具，用于下载最新的 mihom
 * GitHub Release 版本发现
 * 支持代理访问 API（失败自动切换直连）
 * 当前平台安装包自动过滤
-* Clash 订阅下载 / 更新元数据（存储在 `mihomo/profiles`）
+* Clash 订阅下载 / 更新 / 修改 / 删除元数据（存储在 `mihomo/profiles`）
+* 订阅 YAML 校验与 `proxies` 检查
+* 选择订阅原样应用为 `mihomo config.yaml` 并重启 mihomo 服务
 * 内嵌本地离线安装包
 
 ---
