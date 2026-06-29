@@ -48,7 +48,7 @@ type missingBundledMihomoPackageError struct {
 func (e missingBundledMihomoPackageError) Error() string {
 	expectedPath := filepath.Join(e.BaseDir, "packages", e.Pattern)
 	return fmt.Sprintf(
-		"本地安装资源中没有当前平台的 mihomo 安装包: %s/%s（期望匹配: %s）；请先运行 go generate ./resources 并重新构建 snailproxy，或在主菜单选择“下载并安装 mihomo 程序文件”",
+		"本地安装资源中没有当前平台的 mihomo 安装包: %s/%s（期望匹配: %s）；请先运行 go generate ./resources 并重新构建 snailproxy，或在主菜单选择“安装 -> 在线安装”",
 		runtime.GOOS,
 		runtime.GOARCH,
 		expectedPath,
@@ -83,6 +83,8 @@ func Run(ctx context.Context, args []string) error {
 
 func runAction(ctx context.Context, action ui.Action) error {
 	switch action {
+	case ui.ActionInstall:
+		return installMihomo(ctx)
 	case ui.ActionDownload:
 		return downloadAndPrepareMihomo(ctx)
 	case ui.ActionInstallService:
@@ -101,6 +103,27 @@ func runAction(ctx context.Context, action ui.Action) error {
 		return platform.Uninstall(ctx)
 	default:
 		return fmt.Errorf("未知操作: %d", action)
+	}
+}
+
+func installMihomo(ctx context.Context) error {
+	action, err := ui.SelectInstallAction()
+	if err != nil {
+		return err
+	}
+
+	switch action {
+	case ui.InstallReturn:
+		fmt.Println("已返回。")
+		return nil
+	case ui.InstallLocal:
+		return localInstall()
+	case ui.InstallOnline:
+		return downloadAndPrepareMihomo(ctx)
+	case ui.InstallService:
+		return installMihomoService(ctx)
+	default:
+		return fmt.Errorf("未知安装操作: %d", action)
 	}
 }
 

@@ -11,11 +11,13 @@ import (
 )
 
 type Action int
+type InstallAction int
 type SubscriptionDownloadAction int
 type MihomoServiceAction int
 
 const (
 	ActionExit Action = iota
+	ActionInstall
 	ActionDownload
 	ActionInstallService
 	ActionUninstall
@@ -24,6 +26,13 @@ const (
 	ActionLocalInstall
 	ActionVerifyLocalMihomo
 	ActionManageMihomoService
+)
+
+const (
+	InstallReturn InstallAction = iota
+	InstallLocal
+	InstallOnline
+	InstallService
 )
 
 const (
@@ -48,28 +57,57 @@ var stdinReader = bufio.NewReader(os.Stdin)
 func SelectLinuxAction() (Action, error) {
 	printMenu := func() {
 		fmt.Println("Linux 操作菜单:")
-		fmt.Println("  1. 本地安装")
-		fmt.Println("  2. 下载并安装 mihomo 程序文件")
-		fmt.Println("  3. 创建用户并安装 mihomo systemd 服务")
-		fmt.Println("  4. 下载/更新/修改/删除 Clash 订阅")
-		fmt.Println("  5. 选择订阅并应用 mihomo 配置")
-		fmt.Println("  6. 管理 mihomo 服务和代理")
-		fmt.Println("  7. 验证本地 mihomo")
-		fmt.Println("  8. 卸载并清理 mihomo")
+		fmt.Println("  1. 安装")
+		fmt.Println("  2. Clash 订阅管理")
+		fmt.Println("  3. 应用订阅")
+		fmt.Println("  4. mihomo 服务管理")
+		fmt.Println("  5. 验证本地文件")
+		fmt.Println("  6. 卸载")
 		fmt.Println("  0. 退出")
 	}
 
-	return selectAction("[0-8]", printMenu, map[string]Action{
-		"1": ActionLocalInstall,
-		"2": ActionDownload,
-		"3": ActionInstallService,
-		"4": ActionDownloadSubscription,
-		"5": ActionApplySubscription,
-		"6": ActionManageMihomoService,
-		"7": ActionVerifyLocalMihomo,
-		"8": ActionUninstall,
+	return selectAction("[0-6]", printMenu, map[string]Action{
+		"1": ActionInstall,
+		"2": ActionDownloadSubscription,
+		"3": ActionApplySubscription,
+		"4": ActionManageMihomoService,
+		"5": ActionVerifyLocalMihomo,
+		"6": ActionUninstall,
 		"0": ActionExit,
 	})
+}
+
+func SelectInstallAction() (InstallAction, error) {
+	actions := map[string]InstallAction{
+		"1": InstallLocal,
+		"2": InstallOnline,
+		"3": InstallService,
+		"0": InstallReturn,
+	}
+
+	for {
+		fmt.Println("安装:")
+		fmt.Println("  1. 本地安装")
+		fmt.Println("  2. 在线安装")
+		fmt.Println("  3. 创建用户并安装 mihomo systemd 服务")
+		fmt.Println("  0. 返回主菜单")
+		fmt.Print("请输入操作编号 [0-3]: ")
+		line, err := readLine()
+		if err != nil {
+			return InstallReturn, fmt.Errorf("读取用户输入失败: %w", err)
+		}
+
+		value := strings.TrimSpace(line)
+		if action, ok := actions[value]; ok {
+			return action, nil
+		}
+		if value == "" {
+			fmt.Println("输入不能为空，请输入菜单编号。")
+		} else {
+			fmt.Println("输入无效，请重新输入。")
+		}
+		fmt.Println()
+	}
 }
 
 func SelectMihomoServiceAction() (MihomoServiceAction, error) {

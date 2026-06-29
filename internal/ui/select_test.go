@@ -31,6 +31,22 @@ func TestSelectActionReprintsMenuAfterInvalidInput(t *testing.T) {
 	}
 }
 
+func TestSelectInstallActionSelectsServiceInstall(t *testing.T) {
+	originalReader := stdinReader
+	stdinReader = bufio.NewReader(strings.NewReader("3\n"))
+	t.Cleanup(func() {
+		stdinReader = originalReader
+	})
+
+	action, err := SelectInstallAction()
+	if err != nil {
+		t.Fatalf("SelectInstallAction() error = %v", err)
+	}
+	if action != InstallService {
+		t.Fatalf("action = %d, want InstallService", action)
+	}
+}
+
 func TestSelectSubscriptionDownloadTargetSupportsModifyOption(t *testing.T) {
 	originalReader := stdinReader
 	stdinReader = bufio.NewReader(strings.NewReader("3\n"))
