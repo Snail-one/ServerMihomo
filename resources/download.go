@@ -209,6 +209,38 @@ func fetchRelease(ctx context.Context, client *http.Client, apiURL string) (gith
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("User-Agent", "snailproxy-resource-downloader")
 
+	proxyURL, proxyErr := http.ProxyFromEnvironment(req)
+	if proxyErr != nil {
+		fmt.Printf("mihomo GitHub API 访问方式: 直连（代理配置无效: %v）\n", proxyErr)
+	} else if proxyURL != nil {
+		fmt.Printf("mihomo GitHub API 访问方式: 使用代理 %s\n", proxyURL.String())
+	} else {
+		fmt.Println("mihomo GitHub API 访问方式: 直连")
+	}
+
+	release, err := fetchReleaseWithClient(client, req)
+	if err == nil {
+		return release, nil
+	}
+	if proxyErr != nil || proxyURL == nil {
+		return githubRelease{}, err
+	}
+
+	fmt.Printf("通过代理获取 mihomo GitHub API 失败，切换为直连: %v\n", err)
+	directTransport := http.DefaultTransport.(*http.Transport).Clone()
+	directTransport.Proxy = nil
+	directClient := &http.Client{
+		Timeout:   client.Timeout,
+		Transport: directTransport,
+	}
+	release, directErr := fetchReleaseWithClient(directClient, req)
+	if directErr != nil {
+		return githubRelease{}, fmt.Errorf("直连请求 mihomo 最新版本失败: %w", directErr)
+	}
+	return release, nil
+}
+
+func fetchReleaseWithClient(client *http.Client, req *http.Request) (githubRelease, error) {
 	resp, err := client.Do(req)
 	if err != nil {
 		return githubRelease{}, fmt.Errorf("请求 mihomo 最新版本失败: %w", err)

@@ -9,16 +9,16 @@ cd "$repo_root"
 export GOCACHE
 mkdir -p "$GOCACHE"
 
-generate_resources=0
+generate_resources=1
 case "${1:-}" in
 	"")
 		;;
-	--generate)
-		generate_resources=1
+	--skip-generate)
+		generate_resources=0
 		shift
 		;;
 	*)
-		echo "Usage: scripts/build.sh [--generate]" >&2
+		echo "Usage: scripts/build.sh [--skip-generate]" >&2
 		exit 2
 		;;
 esac

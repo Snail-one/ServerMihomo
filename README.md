@@ -37,16 +37,16 @@ go generate ./resources
 * 最新 `mihomo-linux-amd64-v3-v*.gz`
 * 最新 `mihomo-linux-arm64-v*.gz`
 
-普通二进制构建可以直接运行：
+构建并重新下载内嵌离线安装资源：
 
 ```bash
 scripts/build.sh
 ```
 
-如果需要重新下载并内嵌最新离线安装资源，运行：
+如果只需要构建二进制、跳过资源下载，运行：
 
 ```bash
-scripts/build.sh --generate
+scripts/build.sh --skip-generate
 ```
 
 ---
