@@ -21,12 +21,12 @@ snailproxy 是一个轻量级命令行安装工具，用于下载最新的 mihom
 
 # 本地安装包（Local Install Bundle）
 
-`resources/mihomo/` 目录下的文件会在构建时被嵌入到 `snailproxy` 二进制文件中。
+`internal/assets/mihomo/` 目录下的文件会在构建时被嵌入到 `snailproxy` 二进制文件中。
 
 如果需要刷新离线安装资源，在构建前运行：
 
 ```bash
-go generate ./resources
+go generate ./internal/assets
 ```
 
 用于下载最新的离线安装资源，包括：
@@ -61,7 +61,7 @@ sh build-only.sh
 
 # Alpha 版本支持
 
-在执行 `go generate ./resources` 时，可以设置：
+在执行 `go generate ./internal/assets` 时，可以设置：
 
 ```bash
 MIHOMO_RELEASE_CHANNEL=alpha
@@ -94,7 +94,7 @@ MIHOMO_RELEASE_CHANNEL=alpha
 
 # 代码组织
 
-菜单业务按主菜单拆分在 `internal/install`、`internal/subscription`、`internal/service`、`internal/uninstall`。`internal/app` 只保留程序启动、版本参数、sudo 检查和主菜单分发；各菜单选择逻辑放在 `internal/ui/*menu`，通用菜单输入循环放在 `internal/ui/menu`。底层系统能力集中在 `internal/platform`，通过 `platform.Manager` 暴露；Linux 实现直接放在 `internal/platform/*_linux.go`，按二进制安装、systemd、代理环境变量、卸载和命令执行拆分。
+应用内核位于 `internal/app`，只负责启动、版本参数、sudo 检查和由 registry 生成的主菜单循环。功能以编译期内置插件形式放在 `internal/features/<feature>`，每个功能包持有自己的菜单、prompt 和业务流程；默认内置功能由 `internal/features.Default()` 集中注册。插件接口和注册表定义在 `internal/feature`，通用 CLI 输入、确认和菜单渲染位于 `internal/terminal`。mihomo 订阅、配置和本地存储模型位于 `internal/domain/mihomo`；GitHub、下载器、archive、progress、platform 等外部系统能力集中在 `internal/infra/*`；内嵌本地安装资源位于 `internal/assets`。
 
 ---
 
@@ -128,7 +128,7 @@ sh build.sh
 # 等价手动构建方式
 
 ```bash
-go generate ./resources
+go generate ./internal/assets
 GOOS=linux go build -o snailproxy ./cmd/snailproxy
 ```
 

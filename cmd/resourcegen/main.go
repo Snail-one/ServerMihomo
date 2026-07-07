@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,11 +18,10 @@ import (
 )
 
 const (
-	targetDir            = "mihomo"
-	packagesDir          = "mihomo/packages"
-	metacubexdDir        = "mihomo/metacubexd"
 	metacubexdArchiveURL = "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
 )
+
+var targetDirFlag = flag.String("target", filepath.Join("internal", "assets", "mihomo"), "offline resource output directory")
 
 type mihomoDownloadSource struct {
 	name   string
@@ -65,6 +65,11 @@ type githubAsset struct {
 }
 
 func main() {
+	flag.Parse()
+	if flag.NArg() != 0 {
+		fmt.Fprintln(os.Stderr, "usage: resourcegen [-target dir]")
+		os.Exit(2)
+	}
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "下载本地安装资源失败: %v\n", err)
 		os.Exit(1)
@@ -72,6 +77,10 @@ func main() {
 }
 
 func run() error {
+	targetDir := filepath.Clean(strings.TrimSpace(*targetDirFlag))
+	if targetDir == "" || targetDir == "." {
+		return fmt.Errorf("资源目录不能为空")
+	}
 	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		return fmt.Errorf("创建资源目录失败: %w", err)
 	}
@@ -87,16 +96,16 @@ func run() error {
 		}
 	}
 
-	if err := downloadMetaCubeXD(ctx, client); err != nil {
+	if err := downloadMetaCubeXD(ctx, client, filepath.Join(targetDir, "metacubexd")); err != nil {
 		return err
 	}
-	if err := downloadMihomoPackages(ctx, client); err != nil {
+	if err := downloadMihomoPackages(ctx, client, filepath.Join(targetDir, "packages")); err != nil {
 		return err
 	}
 	return nil
 }
 
-func downloadMetaCubeXD(ctx context.Context, client *http.Client) error {
+func downloadMetaCubeXD(ctx context.Context, client *http.Client, metacubexdDir string) error {
 	if err := os.RemoveAll(metacubexdDir); err != nil {
 		return fmt.Errorf("清理 metacubexd 目录失败: %w", err)
 	}
@@ -116,7 +125,7 @@ func downloadMetaCubeXD(ctx context.Context, client *http.Client) error {
 	return nil
 }
 
-func downloadMihomoPackages(ctx context.Context, client *http.Client) error {
+func downloadMihomoPackages(ctx context.Context, client *http.Client, packagesDir string) error {
 	if err := os.RemoveAll(packagesDir); err != nil {
 		return fmt.Errorf("清理 mihomo 安装包目录失败: %w", err)
 	}
