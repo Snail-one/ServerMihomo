@@ -15,10 +15,19 @@ import (
 	"snailproxy/internal/infra/archive"
 	"snailproxy/internal/infra/downloader"
 	"snailproxy/internal/infra/github"
+	"snailproxy/internal/infra/platform"
 )
 
 const latestReleaseURL = "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest"
 const linuxInstalledBinary = "/opt/mihomo/mihomo"
+
+var (
+	installedBinaryPath         = linuxInstalledBinary
+	printLocalMihomoVersionFunc = printLocalMihomoVersion
+	fetchMihomoAssetsFunc       = fetchMihomoAssets
+	selectAssetFunc             = SelectAsset
+	cleanupTemporaryFilesFunc   = cleanupOnlineInstallTemporaryFiles
+)
 
 type missingBundledMihomoPackageError struct {
 	BaseDir string
@@ -70,13 +79,6 @@ func (Feature) Run(ctx context.Context, runtime feature.Runtime) error {
 }
 
 func downloadAndPrepareMihomo(ctx context.Context, runtime feature.Runtime) error {
-	printLocalMihomoVersion(ctx)
-
-	assets, err := fetchMihomoAssets(ctx)
-	if err != nil {
-		return err
-	}
-
 	prepareBinary, overwriteBinary, err := checkInstalledBinary()
 	if err != nil {
 		return err
@@ -85,7 +87,20 @@ func downloadAndPrepareMihomo(ctx context.Context, runtime feature.Runtime) erro
 		return nil
 	}
 
-	asset, err := SelectAsset(assets)
+	return withOnlineInstallTemporaryCleanup(func() error {
+		return downloadAndPrepareSelectedMihomo(ctx, runtime, overwriteBinary)
+	})
+}
+
+func downloadAndPrepareSelectedMihomo(ctx context.Context, runtime feature.Runtime, overwriteBinary bool) error {
+	printLocalMihomoVersionFunc(ctx)
+
+	assets, err := fetchMihomoAssetsFunc(ctx)
+	if err != nil {
+		return err
+	}
+
+	asset, err := selectAssetFunc(assets)
 	if err != nil {
 		return err
 	}
@@ -109,18 +124,43 @@ func downloadAndPrepareMihomo(ctx context.Context, runtime feature.Runtime) erro
 	if err != nil {
 		return err
 	}
-	fmt.Printf("下载目录位置: %s\n", filePath)
+	fmt.Printf("下载文件位置: %s\n", filePath)
 	return prepareMihomoBinaryIfNeeded(ctx, runtime, filePath, asset.Name, overwriteBinary)
 }
 
+func withOnlineInstallTemporaryCleanup(fn func() error) error {
+	err := fn()
+	cleanupErr := cleanupTemporaryFilesFunc()
+	if cleanupErr != nil {
+		if err != nil {
+			fmt.Printf("清理下载临时文件失败: %v\n", cleanupErr)
+			return err
+		}
+		return cleanupErr
+	}
+	return err
+}
+
+func cleanupOnlineInstallTemporaryFiles() error {
+	cleanupErr := errors.Join(
+		downloader.CleanupTemporaryFiles(),
+		platform.CleanupInstallTemporaryFiles(),
+	)
+	if cleanupErr != nil {
+		return cleanupErr
+	}
+	fmt.Println("下载临时文件已清理。")
+	return nil
+}
+
 func printLocalMihomoVersion(ctx context.Context) {
-	if !fileExists(linuxInstalledBinary) {
-		fmt.Printf("当前本地版本: 未安装（%s 不存在）\n", linuxInstalledBinary)
+	if !fileExists(installedBinaryPath) {
+		fmt.Printf("当前本地版本: 未安装（%s 不存在）\n", installedBinaryPath)
 		return
 	}
 
 	fmt.Println("当前本地版本:")
-	cmd := exec.CommandContext(ctx, linuxInstalledBinary, "-v")
+	cmd := exec.CommandContext(ctx, installedBinaryPath, "-v")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -129,16 +169,16 @@ func printLocalMihomoVersion(ctx context.Context) {
 }
 
 func checkInstalledBinary() (bool, bool, error) {
-	if !fileExists(linuxInstalledBinary) {
+	if !fileExists(installedBinaryPath) {
 		return true, false, nil
 	}
 
-	overwrite, err := ConfirmOverwriteInstall(linuxInstalledBinary)
+	overwrite, err := ConfirmOverwriteInstall(installedBinaryPath)
 	if err != nil {
 		return false, false, err
 	}
 	if !overwrite {
-		fmt.Printf("跳过选项 1，保留现有程序文件: %s\n", linuxInstalledBinary)
+		fmt.Printf("跳过选项 1，保留现有程序文件: %s\n", installedBinaryPath)
 		return false, false, nil
 	}
 

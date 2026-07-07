@@ -94,6 +94,13 @@ func DownloadAsset(ctx context.Context, asset github.Asset) (string, error) {
 	return targetPath, nil
 }
 
+func CleanupTemporaryFiles() error {
+	if err := os.RemoveAll(downloadDir()); err != nil {
+		return fmt.Errorf("清理下载临时目录失败: %w", err)
+	}
+	return nil
+}
+
 func VerifyAssetFile(path string, asset github.Asset) error {
 	expected, ok := strings.CutPrefix(strings.ToLower(strings.TrimSpace(asset.Digest)), "sha256:")
 	if !ok || expected == "" {

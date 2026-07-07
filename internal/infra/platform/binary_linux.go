@@ -5,8 +5,6 @@ package platform
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"snailproxy/internal/infra/archive"
 )
@@ -19,8 +17,7 @@ func (m *linuxManager) PrepareBinary(ctx context.Context, archivePath string, as
 		}
 	}
 
-	stagingDir := filepath.Join(os.TempDir(), "mihomo-install")
-	binaryPath, err := archive.ExtractMihomoBinary(archivePath, assetName, stagingDir)
+	binaryPath, err := archive.ExtractMihomoBinary(archivePath, assetName, installTempDir())
 	if err != nil {
 		return fmt.Errorf("解压 mihomo 失败: %w", err)
 	}
