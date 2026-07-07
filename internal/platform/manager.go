@@ -2,7 +2,7 @@ package platform
 
 import "context"
 
-type Installer interface {
+type Manager interface {
 	PrepareBinary(ctx context.Context, archivePath string, assetName string, overwrite bool) error
 	InstallService(ctx context.Context) error
 	StartService(ctx context.Context) error
@@ -10,4 +10,5 @@ type Installer interface {
 	StopService(ctx context.Context) error
 	WriteProxyEnvironment(ctx context.Context) error
 	ClearProxyEnvironment(ctx context.Context) error
+	Uninstall(ctx context.Context) error
 }

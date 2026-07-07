@@ -3,15 +3,9 @@
 package platform
 
 import (
-	"context"
-
 	"snailproxy/internal/platform/linux"
 )
 
-func NewInstaller() (Installer, error) {
+func NewManager() (Manager, error) {
 	return linux.New(), nil
-}
-
-func Uninstall(ctx context.Context) error {
-	return linux.New().Uninstall(ctx)
 }

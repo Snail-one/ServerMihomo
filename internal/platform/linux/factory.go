@@ -2,6 +2,6 @@
 
 package linux
 
-func New() *Installer {
-	return &Installer{}
+func New() *Manager {
+	return &Manager{}
 }
