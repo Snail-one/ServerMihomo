@@ -33,12 +33,6 @@ arch="$(case "$(uname -m)" in x86_64|amd64) echo amd64 ;; aarch64|arm64) echo ar
 sudo ./snailproxy
 ```
 
-如果需要保留代理环境变量：
-
-```bash
-sudo -E ./snailproxy
-```
-
 ---
 
 # 本地安装包（Local Install Bundle）
