@@ -18,7 +18,6 @@ This downloads the Linux offline install inputs into `resources/mihomo/`:
 
 The downloader uses the GitHub API so package downloads can be verified with API `sha256` digests. If API metadata is unavailable, resource generation fails.
 Set `MIHOMO_RELEASE_CHANNEL=alpha` when running `go generate ./resources` to use the `Prerelease-Alpha` development release URLs instead of the stable latest release.
-The resolved package names and sha256 values are written to `resources/mihomo/packages/manifest.json` and embedded with the offline bundle.
 
 The downloaded files are generated build inputs and are ignored by git.
 

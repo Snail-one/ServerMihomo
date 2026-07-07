@@ -1,5 +1,3 @@
-//go:build ignore
-
 package main
 
 import (
@@ -21,7 +19,6 @@ import (
 const (
 	targetDir            = "mihomo"
 	packagesDir          = "mihomo/packages"
-	manifestFile         = "manifest.json"
 	metacubexdDir        = "mihomo/metacubexd"
 	metacubexdArchiveURL = "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
 )
@@ -65,22 +62,6 @@ type githubAsset struct {
 	Size               int64  `json:"size"`
 	Digest             string `json:"digest"`
 	BrowserDownloadURL string `json:"browser_download_url"`
-}
-
-type packageManifest struct {
-	Source      string          `json:"source"`
-	Method      string          `json:"method"`
-	Version     string          `json:"version"`
-	APIURL      string          `json:"api_url,omitempty"`
-	GeneratedAt string          `json:"generated_at"`
-	Assets      []manifestAsset `json:"assets"`
-}
-
-type manifestAsset struct {
-	Name   string `json:"name"`
-	URL    string `json:"url"`
-	SHA256 string `json:"sha256,omitempty"`
-	Size   int64  `json:"size"`
 }
 
 func main() {
@@ -151,13 +132,6 @@ func downloadMihomoPackages(ctx context.Context, client *http.Client) error {
 	fmt.Printf("mihomo 下载信息来源: GitHub API（%s，包含 sha256，可校验下载包）\n", source.name)
 	fmt.Printf("mihomo 最新版本: %s\n", release.TagName)
 
-	manifest := packageManifest{
-		Source:      source.name,
-		Method:      "api",
-		Version:     strings.TrimSpace(release.TagName),
-		APIURL:      source.apiURL,
-		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
-	}
 	for _, assetName := range mihomoAssetNames(release.TagName) {
 		asset, ok := findAsset(release.Assets, assetName)
 		if !ok {
@@ -174,14 +148,8 @@ func downloadMihomoPackages(ctx context.Context, client *http.Client) error {
 		if err := verifyFileDigest(targetPath, asset.Digest); err != nil {
 			return err
 		}
-		manifest.Assets = append(manifest.Assets, manifestAsset{
-			Name:   asset.Name,
-			URL:    asset.BrowserDownloadURL,
-			SHA256: normalizedSHA256(asset.Digest),
-			Size:   asset.Size,
-		})
 	}
-	return writeManifest(manifest)
+	return nil
 }
 
 func selectedMihomoSource() mihomoDownloadSource {
@@ -265,21 +233,6 @@ func findAsset(assets []githubAsset, wantName string) (githubAsset, bool) {
 		}
 	}
 	return githubAsset{}, false
-}
-
-func writeManifest(manifest packageManifest) error {
-	data, err := json.MarshalIndent(manifest, "", "  ")
-	if err != nil {
-		return fmt.Errorf("编码 mihomo 安装包 manifest 失败: %w", err)
-	}
-	data = append(data, '\n')
-
-	targetPath := filepath.Join(packagesDir, manifestFile)
-	if err := os.WriteFile(targetPath, data, 0o644); err != nil {
-		return fmt.Errorf("写入 mihomo 安装包 manifest 失败: %w", err)
-	}
-	fmt.Printf("已写入 mihomo 安装包 manifest: %s\n", targetPath)
-	return nil
 }
 
 func downloadResource(ctx context.Context, client *http.Client, rawURL string, targetPath string) error {

@@ -42,14 +42,12 @@ func releaseMihomoBundleFromFS(source fs.FS, options ReleaseOptions) (ReleaseRes
 		if sourcePath == mihomoBundleRoot {
 			return nil
 		}
-		switch path.Base(sourcePath) {
-		case ".gitkeep", ".gitignore":
-			return nil
-		}
-
 		relativePath := strings.TrimPrefix(sourcePath, mihomoBundleRoot+"/")
 		if relativePath == sourcePath {
 			return fmt.Errorf("资源路径不在 %s 目录下: %s", mihomoBundleRoot, sourcePath)
+		}
+		if shouldSkipBundlePath(relativePath) {
+			return nil
 		}
 		targetPath := filepath.Join(options.TargetDir, filepath.FromSlash(relativePath))
 
@@ -78,6 +76,14 @@ func releaseMihomoBundleFromFS(source fs.FS, options ReleaseOptions) (ReleaseRes
 	}
 
 	return result, nil
+}
+
+func shouldSkipBundlePath(relativePath string) bool {
+	switch path.Base(relativePath) {
+	case ".gitkeep", ".gitignore":
+		return true
+	}
+	return relativePath == "packages/manifest.json"
 }
 
 func copyEmbeddedFile(source fs.FS, sourcePath string, targetPath string, mode fs.FileMode) error {

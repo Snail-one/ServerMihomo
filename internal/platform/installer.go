@@ -11,7 +11,3 @@ type Installer interface {
 	WriteProxyEnvironment(ctx context.Context) error
 	ClearProxyEnvironment(ctx context.Context) error
 }
-
-type Uninstaller interface {
-	Uninstall(ctx context.Context) error
-}

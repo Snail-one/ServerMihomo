@@ -16,11 +16,14 @@ func TestReleaseMihomoBundleFromFSCopiesFilesIntoTargetRoot(t *testing.T) {
 		"mihomo/.gitignore": {
 			Data: []byte("*\n"),
 		},
+		"mihomo/packages/manifest.json": {
+			Data: []byte("{}\n"),
+		},
 		"mihomo/config.yaml": {
 			Data: []byte("mode: rule\n"),
 		},
-		"mihomo/templates/rules.yaml": {
-			Data: []byte("rules:\n- MATCH,DIRECT\n"),
+		"mihomo/metacubexd/index.html": {
+			Data: []byte("<html></html>\n"),
 		},
 	}
 
@@ -30,7 +33,7 @@ func TestReleaseMihomoBundleFromFSCopiesFilesIntoTargetRoot(t *testing.T) {
 	}
 
 	assertFileContent(t, filepath.Join(targetDir, "config.yaml"), "mode: rule\n")
-	assertFileContent(t, filepath.Join(targetDir, "templates", "rules.yaml"), "rules:\n- MATCH,DIRECT\n")
+	assertFileContent(t, filepath.Join(targetDir, "metacubexd", "index.html"), "<html></html>\n")
 	if len(result.Released) != 2 {
 		t.Fatalf("Released = %#v, want 2 files", result.Released)
 	}
@@ -39,6 +42,9 @@ func TestReleaseMihomoBundleFromFSCopiesFilesIntoTargetRoot(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(targetDir, ".gitignore")); !os.IsNotExist(err) {
 		t.Fatalf(".gitignore should not be released, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "packages", "manifest.json")); !os.IsNotExist(err) {
+		t.Fatalf("packages/manifest.json should not be released, stat err = %v", err)
 	}
 }
 

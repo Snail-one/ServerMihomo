@@ -408,16 +408,8 @@ func currentSystemUser() (systemUser, error) {
 }
 
 func detectMihomoProxySettings() proxyEnvironmentSettings {
-	configPaths := []string{
-		filepath.Join(installDir, "config.yaml"),
-		filepath.Join(installDir, "templates", "mihomo.yaml"),
-	}
-
-	for _, configPath := range configPaths {
-		data, err := os.ReadFile(configPath)
-		if err != nil {
-			continue
-		}
+	data, err := os.ReadFile(filepath.Join(installDir, "config.yaml"))
+	if err == nil {
 		if settings, ok := proxyEnvironmentSettingsFromConfig(data); ok {
 			return settings
 		}

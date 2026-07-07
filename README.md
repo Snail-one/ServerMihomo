@@ -123,7 +123,7 @@ sh build.sh
 
 ```bash
 go generate ./resources
-GOOS=linux go build -o snailproxy .
+GOOS=linux go build -o snailproxy ./cmd/snailproxy
 ```
 
 ---

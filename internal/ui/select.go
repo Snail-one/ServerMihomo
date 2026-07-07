@@ -192,11 +192,6 @@ func ConfirmOverwriteInstall(path string) (bool, error) {
 	return ConfirmNoDefault("是否覆盖安装? [y/N]: ")
 }
 
-func ConfirmOverwriteDefaultConfig(path string) (bool, error) {
-	fmt.Printf("默认配置已存在: %s\n", path)
-	return ConfirmNoDefault("是否覆盖默认配置? [y/N]: ")
-}
-
 func ConfirmOverwriteLocalInstall(targetDir string) (bool, error) {
 	fmt.Printf("本地安装目录: %s\n", targetDir)
 	return ConfirmNoDefault("遇到同名文件时是否覆盖安装? [y/N]: ")
@@ -205,20 +200,6 @@ func ConfirmOverwriteLocalInstall(targetDir string) (bool, error) {
 func ConfirmDeleteSubscription(label string) (bool, error) {
 	fmt.Printf("将删除订阅: %s\n", label)
 	return ConfirmNoDefault("确认删除订阅及本地文件? [y/N]: ")
-}
-
-func ConfirmYesDefault(prompt string) (bool, error) {
-	fmt.Print(prompt)
-	line, err := readLine()
-	if err != nil {
-		return false, fmt.Errorf("读取用户输入失败: %w", err)
-	}
-
-	answer := strings.ToLower(strings.TrimSpace(line))
-	if answer == "" {
-		return true, nil
-	}
-	return answer == "y" || answer == "yes", nil
 }
 
 func ConfirmNoDefault(prompt string) (bool, error) {

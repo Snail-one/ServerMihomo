@@ -22,4 +22,4 @@ commit=$(git rev-parse --short HEAD 2>/dev/null || printf unknown)
 build_date=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 ldflags="-X snailproxy/internal/version.Version=$version -X snailproxy/internal/version.Commit=$commit -X snailproxy/internal/version.BuildDate=$build_date"
 
-GOOS=linux go build -ldflags "$ldflags" -o snailproxy .
+GOOS=linux go build -ldflags "$ldflags" -o snailproxy ./cmd/snailproxy
