@@ -61,6 +61,10 @@ func Run(ctx context.Context, args []string, registry feature.Registry) error {
 			fmt.Println("操作完成。")
 		}
 		fmt.Println()
+		if err := terminal.Pause("按 Enter 返回主菜单..."); err != nil {
+			return err
+		}
+		fmt.Println()
 	}
 }
 

@@ -47,6 +47,7 @@ func Select[T any](title string, promptRange string, options []MenuOption[T]) (T
 		actions[option.Number] = option.Value
 	}
 
+	ClearScreen()
 	for {
 		if strings.TrimSpace(title) != "" {
 			fmt.Println(title)
@@ -93,10 +94,29 @@ func (stdTerminal) ConfirmNoDefault(prompt string) (bool, error) {
 	return answer == "y" || answer == "yes", nil
 }
 
+func Pause(prompt string) error {
+	if strings.TrimSpace(prompt) == "" {
+		prompt = "按 Enter 继续..."
+	}
+	fmt.Print(prompt)
+	if _, err := ReadLine(); err != nil {
+		return fmt.Errorf("读取用户输入失败: %w", err)
+	}
+	return nil
+}
+
 func ReadLine() (string, error) {
 	return Default().ReadLine()
 }
 
 func (stdTerminal) ReadLine() (string, error) {
 	return stdinReader.ReadString('\n')
+}
+
+func ClearScreen() {
+	info, err := os.Stdout.Stat()
+	if err != nil || info.Mode()&os.ModeCharDevice == 0 {
+		return
+	}
+	fmt.Print("\033[H\033[2J")
 }
