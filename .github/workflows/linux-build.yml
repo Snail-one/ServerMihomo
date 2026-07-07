@@ -56,7 +56,13 @@ jobs:
           CGO_ENABLED: "0"
           GOOS: linux
           GOARCH: ${{ matrix.goarch }}
-        run: go build -trimpath -ldflags="-s -w" -o "dist/snailproxy-linux-${GOARCH}" .
+        run: |
+          mkdir -p dist
+          version="${GITHUB_REF_NAME}"
+          commit="$(git rev-parse --short HEAD)"
+          build_date="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          ldflags="-s -w -X snailproxy/internal/version.Version=${version} -X snailproxy/internal/version.Commit=${commit} -X snailproxy/internal/version.BuildDate=${build_date}"
+          go build -trimpath -ldflags="${ldflags}" -o "dist/snailproxy-linux-${GOARCH}" .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

@@ -17,6 +17,7 @@ import (
 	"snailproxy/internal/mihomo"
 	"snailproxy/internal/platform"
 	"snailproxy/internal/ui"
+	"snailproxy/internal/version"
 	"snailproxy/resources"
 )
 
@@ -56,6 +57,11 @@ func (e missingBundledMihomoPackageError) Error() string {
 }
 
 func Run(ctx context.Context, args []string) error {
+	if handleVersionArg(args) {
+		fmt.Println(version.Info())
+		return nil
+	}
+
 	fmt.Printf("当前系统: %s/%s\n", runtime.GOOS, runtime.GOARCH)
 
 	if err := platform.RequireSudo(); err != nil {
@@ -78,6 +84,19 @@ func Run(ctx context.Context, args []string) error {
 			fmt.Println("操作完成。")
 		}
 		fmt.Println()
+	}
+}
+
+func handleVersionArg(args []string) bool {
+	if len(args) != 1 {
+		return false
+	}
+
+	switch strings.TrimSpace(args[0]) {
+	case "-v", "--version", "version":
+		return true
+	default:
+		return false
 	}
 }
 
