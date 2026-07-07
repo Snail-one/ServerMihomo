@@ -1118,8 +1118,6 @@ dns:
   - time.*.com
   - +.market.xiaomi.com
   - localhost.ptlogin2.qq.com
-  - '*.msftncsi.com'
-  - www.msftconnecttest.com
   fake-ip-filter-mode: blacklist
   fake-ip-range: 198.18.0.1/16
   fallback: []
@@ -1152,7 +1150,6 @@ const defaultProxyGroups = `proxy-groups:
 - -Steam
 - -Epic
 - -Battle
-- -OneDrive
 - -Bilibili
 - -Kaspersky
 - -Ollama
@@ -1188,16 +1185,11 @@ const defaultRules = `rules:
 - GEOSITE,steam@cn,DIRECT
 - GEOSITE,category-games@cn,DIRECT
 - GEOSITE,douyin,DIRECT
-- PROCESS-NAME,nvcontainer.exe,DIRECT
-- PROCESS-NAME,OneDrive.exe,OneDrive
-- PROCESS-NAME,OneDrive.Sync.Service.exe,OneDrive
-- PROCESS-NAME,FileCoAuth.exe,OneDrive
-- PROCESS-NAME,Spotify.exe,Spotify
-- PROCESS-NAME,steam.exe,Steam
-- PROCESS-NAME,steamwebhelper.exe,Steam
-- PROCESS-NAME,Battle.net.exe,Battle
-- PROCESS-NAME,Agent.exe,Battle
-- PROCESS-NAME,Telegram.exe,Telegram
+- PROCESS-NAME,steam,Steam
+- PROCESS-NAME,steamwebhelper,Steam
+- PROCESS-NAME,spotify,Spotify
+- PROCESS-NAME,telegram-desktop,Telegram
+- PROCESS-NAME,ollama,DIRECT
 - GEOSITE,epicgames,Epic
 - GEOSITE,blizzard,Battle
 - GEOSITE,steam,Steam
@@ -1215,7 +1207,6 @@ const defaultRules = `rules:
 - GEOSITE,google,Google
 - GEOSITE,github,GitHub
 - GEOSITE,microsoft,Microsoft
-- GEOSITE,onedrive,OneDrive
 - GEOSITE,apple,Apple
 - GEOSITE,pixiv,Pixiv
 - GEOSITE,bilibili,Bilibili

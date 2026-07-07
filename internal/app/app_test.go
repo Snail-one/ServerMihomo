@@ -34,7 +34,7 @@ func TestBundledMihomoPackagePathMissingPackageErrorIsActionable(t *testing.T) {
 	for _, want := range []string{
 		filepath.Join(baseDir, "packages", bundledMihomoPackagePattern()),
 		"go generate ./resources",
-		"安装 -> 在线安装",
+		"安装与更新 -> 在线下载并安装 mihomo",
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("missing error should contain %q:\n%v", want, err)

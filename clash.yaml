@@ -156,6 +156,5 @@ proxy-groups:
       - 🇺🇸 US VLESS-229 | free-nodes
       - 🇺🇸 US VLESS-230 | free-nodes
 rules:
-  - PROCESS-NAME,cfnat-android-arm64,🎯 全球直连
-  - PROCESS-NAME,cfnat-darwin-amd64,🎯 全球直连
-  - PROCESS-NAME,cfnat-darwin-arm64,🎯 全球直连
+  - PROCESS-NAME,cfnat-linux-amd64,🎯 全球直连
+  - PROCESS-NAME,cfnat-linux-arm64,🎯 全球直连

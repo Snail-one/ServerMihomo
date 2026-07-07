@@ -1,4 +1,4 @@
-# Local Mihomo Install Bundle
+# Linux Mihomo Install Bundle
 
 Put files that should be embedded into the `snailproxy` binary under `resources/mihomo/`.
 
@@ -8,7 +8,7 @@ When the offline install resources need to be refreshed, run:
 go generate ./resources
 ```
 
-This downloads the offline install inputs into `resources/mihomo/`:
+This downloads the Linux offline install inputs into `resources/mihomo/`:
 
 - `geoip.metadb`
 - `geosite.dat`

@@ -18,7 +18,7 @@ func TestApplySubscriptionMergesCustomBeforeSubscriptionAndGroups(t *testing.T) 
 
 	writeTestFile(t, store.BaseConfigPath(), "mode: rule\n")
 	writeTestFile(t, store.RulesPath(), `rules:
-- PROCESS-NAME,custom.exe,Custom
+- PROCESS-NAME,custom-service,Custom
 - GEOIP,CN,GEOIP-CN,no-resolve
 - MATCH,Final
 `)
@@ -67,7 +67,7 @@ func TestApplySubscriptionMergesCustomBeforeSubscriptionAndGroups(t *testing.T) 
 	assertContains(t, final, "- name: Custom")
 	assertContains(t, final, "  - DIRECT")
 	assertContains(t, final, "- name: Final")
-	assertContains(t, final, "rules:\n- PROCESS-NAME,custom.exe,Custom")
+	assertContains(t, final, "rules:\n- PROCESS-NAME,custom-service,Custom")
 
 	if result.ProxyCount != 2 {
 		t.Fatalf("ProxyCount = %d, want 2", result.ProxyCount)

@@ -20,7 +20,7 @@ func Info() string {
 		fmt.Sprintf("commit: %s", strings.TrimSpace(Commit)),
 		fmt.Sprintf("built: %s", strings.TrimSpace(BuildDate)),
 		fmt.Sprintf("go: %s", runtime.Version()),
-		fmt.Sprintf("platform: %s/%s", runtime.GOOS, runtime.GOARCH),
+		fmt.Sprintf("platform: linux/%s", runtime.GOARCH),
 	}
 	return strings.Join(lines, "\n")
 }

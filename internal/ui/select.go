@@ -12,20 +12,21 @@ import (
 
 type Action int
 type InstallAction int
-type SubscriptionDownloadAction int
-type MihomoServiceAction int
+type SubscriptionAction int
+type ServiceAction int
+
+type MenuOption[T any] struct {
+	Number int
+	Label  string
+	Value  T
+}
 
 const (
 	ActionExit Action = iota
 	ActionInstall
-	ActionDownload
-	ActionInstallService
-	ActionUninstall
-	ActionDownloadSubscription
-	ActionApplySubscription
-	ActionLocalInstall
-	ActionVerifyLocalMihomo
+	ActionManageSubscription
 	ActionManageMihomoService
+	ActionUninstall
 )
 
 const (
@@ -36,135 +37,124 @@ const (
 )
 
 const (
-	SubscriptionDownloadReturn SubscriptionDownloadAction = iota
-	SubscriptionDownloadUpdate
-	SubscriptionDownloadCreate
-	SubscriptionDownloadModify
-	SubscriptionDownloadDelete
+	SubscriptionReturn SubscriptionAction = iota
+	SubscriptionCreate
+	SubscriptionUpdate
+	SubscriptionModify
+	SubscriptionDelete
+	SubscriptionApply
 )
 
 const (
-	MihomoServiceReturn MihomoServiceAction = iota
-	MihomoServiceStart
-	MihomoServiceRestart
-	MihomoServiceStop
-	MihomoServiceWriteProxyEnv
-	MihomoServiceClearProxyEnv
+	ServiceReturn ServiceAction = iota
+	ServiceStart
+	ServiceRestart
+	ServiceStop
+	ServiceWriteProxyEnv
+	ServiceClearProxyEnv
 )
 
 var stdinReader = bufio.NewReader(os.Stdin)
 
-func SelectLinuxAction() (Action, error) {
-	printMenu := func() {
-		fmt.Println("Linux 操作菜单:")
-		fmt.Println("  1. 安装")
-		fmt.Println("  2. Clash 订阅管理")
-		fmt.Println("  3. 应用订阅")
-		fmt.Println("  4. mihomo 服务管理")
-		fmt.Println("  5. 验证本地文件")
-		fmt.Println("  6. 卸载")
-		fmt.Println("  0. 退出")
-	}
-
-	return selectAction("[0-6]", printMenu, map[string]Action{
-		"1": ActionInstall,
-		"2": ActionDownloadSubscription,
-		"3": ActionApplySubscription,
-		"4": ActionManageMihomoService,
-		"5": ActionVerifyLocalMihomo,
-		"6": ActionUninstall,
-		"0": ActionExit,
+func SelectMainAction() (Action, error) {
+	return SelectMenu("主菜单:", "[0-4]", []MenuOption[Action]{
+		{Number: 1, Label: "安装与更新", Value: ActionInstall},
+		{Number: 2, Label: "订阅管理", Value: ActionManageSubscription},
+		{Number: 3, Label: "mihomo 服务与代理", Value: ActionManageMihomoService},
+		{Number: 4, Label: "卸载", Value: ActionUninstall},
+		{Number: 0, Label: "退出", Value: ActionExit},
 	})
 }
 
 func SelectInstallAction() (InstallAction, error) {
-	actions := map[string]InstallAction{
-		"1": InstallLocal,
-		"2": InstallOnline,
-		"3": InstallService,
-		"0": InstallReturn,
-	}
-
-	for {
-		fmt.Println("安装:")
-		fmt.Println("  1. 本地安装")
-		fmt.Println("  2. 在线安装")
-		fmt.Println("  3. 创建用户并安装 mihomo systemd 服务")
-		fmt.Println("  0. 返回主菜单")
-		fmt.Print("请输入操作编号 [0-3]: ")
-		line, err := readLine()
-		if err != nil {
-			return InstallReturn, fmt.Errorf("读取用户输入失败: %w", err)
-		}
-
-		value := strings.TrimSpace(line)
-		if action, ok := actions[value]; ok {
-			return action, nil
-		}
-		if value == "" {
-			fmt.Println("输入不能为空，请输入菜单编号。")
-		} else {
-			fmt.Println("输入无效，请重新输入。")
-		}
-		fmt.Println()
-	}
+	return SelectMenu("安装与更新:", "[0-3]", []MenuOption[InstallAction]{
+		{Number: 1, Label: "本地安装", Value: InstallLocal},
+		{Number: 2, Label: "在线下载并安装 mihomo", Value: InstallOnline},
+		{Number: 3, Label: "安装/更新 systemd 服务", Value: InstallService},
+		{Number: 0, Label: "返回", Value: InstallReturn},
+	})
 }
 
-func SelectMihomoServiceAction() (MihomoServiceAction, error) {
-	actions := map[string]MihomoServiceAction{
-		"1": MihomoServiceStart,
-		"2": MihomoServiceRestart,
-		"3": MihomoServiceStop,
-		"4": MihomoServiceWriteProxyEnv,
-		"5": MihomoServiceClearProxyEnv,
-		"0": MihomoServiceReturn,
+func SelectSubscriptionAction(labels []string) (SubscriptionAction, error) {
+	options := []MenuOption[SubscriptionAction]{
+		{Number: 1, Label: "新增", Value: SubscriptionCreate},
 	}
-
-	for {
-		fmt.Println("mihomo 服务和代理管理:")
-		fmt.Println("  1. 启动 mihomo 服务")
-		fmt.Println("  2. 重启 mihomo 服务")
-		fmt.Println("  3. 停止 mihomo 服务")
-		fmt.Println("  4. 写入代理环境变量")
-		fmt.Println("  5. 清除代理环境变量")
-		fmt.Println("  0. 返回主菜单")
-		fmt.Print("请输入操作编号 [0-5]: ")
-		line, err := readLine()
-		if err != nil {
-			return MihomoServiceReturn, fmt.Errorf("读取用户输入失败: %w", err)
-		}
-
-		value := strings.TrimSpace(line)
-		if action, ok := actions[value]; ok {
-			return action, nil
-		}
-		if value == "" {
-			fmt.Println("输入不能为空，请输入菜单编号。")
-		} else {
-			fmt.Println("输入无效，请重新输入。")
-		}
-		fmt.Println()
+	promptRange := "[0-1]"
+	if len(labels) > 0 {
+		options = append(options,
+			MenuOption[SubscriptionAction]{Number: 2, Label: "更新已有", Value: SubscriptionUpdate},
+			MenuOption[SubscriptionAction]{Number: 3, Label: "修改已有", Value: SubscriptionModify},
+			MenuOption[SubscriptionAction]{Number: 4, Label: "删除已有", Value: SubscriptionDelete},
+			MenuOption[SubscriptionAction]{Number: 5, Label: "应用订阅", Value: SubscriptionApply},
+		)
+		promptRange = "[0-5]"
 	}
+	options = append(options, MenuOption[SubscriptionAction]{Number: 0, Label: "返回", Value: SubscriptionReturn})
+
+	return SelectMenu(subscriptionActionTitle(labels), promptRange, options)
 }
 
-func selectAction(promptRange string, printMenu func(), actions map[string]Action) (Action, error) {
+func subscriptionActionTitle(labels []string) string {
+	if len(labels) == 0 {
+		return "订阅管理:\n当前没有订阅。"
+	}
+
+	lines := []string{"订阅管理:", "已有订阅:"}
+	for _, label := range labels {
+		lines = append(lines, "  - "+label)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func SelectServiceAction() (ServiceAction, error) {
+	return SelectMenu("mihomo 服务与代理:", "[0-5]", []MenuOption[ServiceAction]{
+		{Number: 1, Label: "启动 mihomo 服务", Value: ServiceStart},
+		{Number: 2, Label: "重启 mihomo 服务", Value: ServiceRestart},
+		{Number: 3, Label: "停止 mihomo 服务", Value: ServiceStop},
+		{Number: 4, Label: "写入代理环境变量", Value: ServiceWriteProxyEnv},
+		{Number: 5, Label: "清除代理环境变量", Value: ServiceClearProxyEnv},
+		{Number: 0, Label: "返回", Value: ServiceReturn},
+	})
+}
+
+func SelectMenu[T any](title string, promptRange string, options []MenuOption[T]) (T, error) {
+	var zero T
+	if len(options) == 0 {
+		return zero, fmt.Errorf("菜单选项不能为空")
+	}
+
+	actions := make(map[int]T, len(options))
+	for _, option := range options {
+		actions[option.Number] = option.Value
+	}
+
 	for {
-		printMenu()
+		if strings.TrimSpace(title) != "" {
+			fmt.Println(title)
+		}
+		for _, option := range options {
+			fmt.Printf("  %d. %s\n", option.Number, option.Label)
+		}
 		fmt.Printf("请输入操作编号 %s: ", promptRange)
 		line, err := readLine()
 		if err != nil {
-			return ActionExit, fmt.Errorf("读取用户输入失败: %w", err)
+			return zero, fmt.Errorf("读取用户输入失败: %w", err)
 		}
 
 		value := strings.TrimSpace(line)
-		if action, ok := actions[value]; ok {
-			return action, nil
-		}
 		if value == "" {
 			fmt.Println("输入不能为空，请输入菜单编号。")
-		} else {
-			fmt.Println("输入无效，请重新输入。")
+			fmt.Println()
+			continue
 		}
+
+		number, err := strconv.Atoi(value)
+		if err == nil {
+			if action, ok := actions[number]; ok {
+				return action, nil
+			}
+		}
+		fmt.Println("输入无效，请重新输入。")
 		fmt.Println()
 	}
 }
@@ -242,77 +232,17 @@ func ConfirmNoDefault(prompt string) (bool, error) {
 	return answer == "y" || answer == "yes", nil
 }
 
-func SelectSubscriptionDownloadTarget(labels []string) (int, SubscriptionDownloadAction, error) {
-	fmt.Println("订阅下载/更新/修改/删除:")
-	for i, label := range labels {
-		fmt.Printf("  %d. 更新 %s\n", i+1, label)
-	}
-	newOption := len(labels) + 1
-	fmt.Printf("  %d. 手动下载新的订阅\n", newOption)
-	modifyOption := 0
-	deleteOption := 0
-	maxOption := newOption
-	if len(labels) > 0 {
-		modifyOption = len(labels) + 2
-		deleteOption = len(labels) + 3
-		maxOption = deleteOption
-		fmt.Printf("  %d. 修改已有订阅\n", modifyOption)
-		fmt.Printf("  %d. 删除已有订阅\n", deleteOption)
-	}
-	fmt.Println("  0. 返回")
-
-	for {
-		fmt.Printf("请选择订阅操作 [0-%d]: ", maxOption)
-		line, err := readLine()
-		if err != nil {
-			return -1, SubscriptionDownloadReturn, fmt.Errorf("读取用户输入失败: %w", err)
-		}
-
-		index, err := strconv.Atoi(strings.TrimSpace(line))
-		if err != nil || index < 0 || index > maxOption {
-			fmt.Println("输入无效，请重新输入。")
-			continue
-		}
-		if index == 0 {
-			return -1, SubscriptionDownloadReturn, nil
-		}
-		if index == newOption {
-			return -1, SubscriptionDownloadCreate, nil
-		}
-		if modifyOption > 0 && index == modifyOption {
-			return -1, SubscriptionDownloadModify, nil
-		}
-		if deleteOption > 0 && index == deleteOption {
-			return -1, SubscriptionDownloadDelete, nil
-		}
-		return index - 1, SubscriptionDownloadUpdate, nil
-	}
-}
-
 func SelectSubscription(labels []string) (int, error) {
-	fmt.Println("可用订阅:")
+	options := make([]MenuOption[int], 0, len(labels)+1)
 	for i, label := range labels {
-		fmt.Printf("  %d. %s\n", i+1, label)
+		options = append(options, MenuOption[int]{
+			Number: i + 1,
+			Label:  label,
+			Value:  i,
+		})
 	}
-	fmt.Println("  0. 返回")
-
-	for {
-		fmt.Printf("请选择订阅 [0-%d]: ", len(labels))
-		line, err := readLine()
-		if err != nil {
-			return -1, fmt.Errorf("读取用户输入失败: %w", err)
-		}
-
-		index, err := strconv.Atoi(strings.TrimSpace(line))
-		if err != nil || index < 0 || index > len(labels) {
-			fmt.Println("输入无效，请重新输入。")
-			continue
-		}
-		if index == 0 {
-			return -1, nil
-		}
-		return index - 1, nil
-	}
+	options = append(options, MenuOption[int]{Number: 0, Label: "返回", Value: -1})
+	return SelectMenu("可用订阅:", fmt.Sprintf("[0-%d]", len(labels)), options)
 }
 
 func PromptSubscriptionURL() (string, error) {

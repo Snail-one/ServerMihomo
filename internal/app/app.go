@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -23,23 +22,6 @@ import (
 
 const latestReleaseURL = "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest"
 const linuxInstalledBinary = "/opt/mihomo/mihomo"
-const mihomoPackageManifestFile = "manifest.json"
-
-type mihomoPackageManifest struct {
-	Source      string                       `json:"source"`
-	Method      string                       `json:"method"`
-	Version     string                       `json:"version"`
-	APIURL      string                       `json:"api_url"`
-	GeneratedAt string                       `json:"generated_at"`
-	Assets      []mihomoPackageManifestAsset `json:"assets"`
-}
-
-type mihomoPackageManifestAsset struct {
-	Name   string `json:"name"`
-	URL    string `json:"url"`
-	SHA256 string `json:"sha256"`
-	Size   int64  `json:"size"`
-}
 
 type missingBundledMihomoPackageError struct {
 	BaseDir string
@@ -49,8 +31,7 @@ type missingBundledMihomoPackageError struct {
 func (e missingBundledMihomoPackageError) Error() string {
 	expectedPath := filepath.Join(e.BaseDir, "packages", e.Pattern)
 	return fmt.Sprintf(
-		"本地安装资源中没有当前平台的 mihomo 安装包: %s/%s（期望匹配: %s）；请先运行 go generate ./resources 并重新构建 snailproxy，或在主菜单选择“安装 -> 在线安装”",
-		runtime.GOOS,
+		"本地安装资源中没有当前 Linux 架构的 mihomo 安装包: linux/%s（期望匹配: %s）；请先运行 go generate ./resources 并重新构建 snailproxy，或在主菜单选择“安装与更新 -> 在线下载并安装 mihomo”",
 		runtime.GOARCH,
 		expectedPath,
 	)
@@ -62,14 +43,14 @@ func Run(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("当前系统: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+	fmt.Printf("当前 Linux 系统: linux/%s\n", runtime.GOARCH)
 
 	if err := platform.RequireSudo(); err != nil {
 		return err
 	}
 
 	for {
-		action, err := selectPlatformAction()
+		action, err := ui.SelectMainAction()
 		if err != nil {
 			return err
 		}
@@ -103,21 +84,11 @@ func handleVersionArg(args []string) bool {
 func runAction(ctx context.Context, action ui.Action) error {
 	switch action {
 	case ui.ActionInstall:
-		return installMihomo(ctx)
-	case ui.ActionDownload:
-		return downloadAndPrepareMihomo(ctx)
-	case ui.ActionInstallService:
-		return installMihomoService(ctx)
-	case ui.ActionDownloadSubscription:
-		return downloadOrUpdateSubscription(ctx)
-	case ui.ActionApplySubscription:
-		return selectAndApplySubscription(ctx)
-	case ui.ActionLocalInstall:
-		return localInstall()
-	case ui.ActionVerifyLocalMihomo:
-		return verifyLocalMihomo(ctx)
+		return handleInstall(ctx)
+	case ui.ActionManageSubscription:
+		return handleSubscription(ctx)
 	case ui.ActionManageMihomoService:
-		return manageMihomoService(ctx)
+		return handleService(ctx)
 	case ui.ActionUninstall:
 		return platform.Uninstall(ctx)
 	default:
@@ -125,7 +96,7 @@ func runAction(ctx context.Context, action ui.Action) error {
 	}
 }
 
-func installMihomo(ctx context.Context) error {
+func handleInstall(ctx context.Context) error {
 	action, err := ui.SelectInstallAction()
 	if err != nil {
 		return err
@@ -144,13 +115,6 @@ func installMihomo(ctx context.Context) error {
 	default:
 		return fmt.Errorf("未知安装操作: %d", action)
 	}
-}
-
-func selectPlatformAction() (ui.Action, error) {
-	if runtime.GOOS != "linux" {
-		return ui.ActionExit, fmt.Errorf("暂不支持当前系统: %s", runtime.GOOS)
-	}
-	return ui.SelectLinuxAction()
 }
 
 func downloadAndPrepareMihomo(ctx context.Context) error {
@@ -247,12 +211,12 @@ func installMihomoService(ctx context.Context) error {
 	return installer.InstallService(ctx)
 }
 
-func manageMihomoService(ctx context.Context) error {
-	action, err := ui.SelectMihomoServiceAction()
+func handleService(ctx context.Context) error {
+	action, err := ui.SelectServiceAction()
 	if err != nil {
 		return err
 	}
-	if action == ui.MihomoServiceReturn {
+	if action == ui.ServiceReturn {
 		fmt.Println("已返回。")
 		return nil
 	}
@@ -263,52 +227,95 @@ func manageMihomoService(ctx context.Context) error {
 	}
 
 	switch action {
-	case ui.MihomoServiceStart:
+	case ui.ServiceStart:
 		return installer.StartService(ctx)
-	case ui.MihomoServiceRestart:
+	case ui.ServiceRestart:
 		return installer.RestartService(ctx)
-	case ui.MihomoServiceStop:
+	case ui.ServiceStop:
 		return installer.StopService(ctx)
-	case ui.MihomoServiceWriteProxyEnv:
+	case ui.ServiceWriteProxyEnv:
 		return installer.WriteProxyEnvironment(ctx)
-	case ui.MihomoServiceClearProxyEnv:
+	case ui.ServiceClearProxyEnv:
 		return installer.ClearProxyEnvironment(ctx)
 	default:
 		return fmt.Errorf("未知 mihomo 服务操作: %d", action)
 	}
 }
 
-func downloadOrUpdateSubscription(ctx context.Context) error {
-	store := mihomo.NewStore()
-	if err := store.EnsureDirs(); err != nil {
-		return err
-	}
-
-	subscriptions, err := store.LoadSubscriptions()
+func handleSubscription(ctx context.Context) error {
+	store, subscriptions, err := loadSubscriptionStore()
 	if err != nil {
 		return err
 	}
 
-	index, action, err := ui.SelectSubscriptionDownloadTarget(subscriptionLabels(subscriptions))
+	action, err := ui.SelectSubscriptionAction(subscriptionLabels(subscriptions))
 	if err != nil {
 		return err
 	}
 
 	switch action {
-	case ui.SubscriptionDownloadReturn:
+	case ui.SubscriptionReturn:
 		fmt.Println("已返回。")
 		return nil
-	case ui.SubscriptionDownloadCreate:
+	case ui.SubscriptionCreate:
 		return downloadNewSubscription(ctx, store, subscriptions)
-	case ui.SubscriptionDownloadDelete:
-		return deleteExistingSubscription(store, subscriptions)
-	case ui.SubscriptionDownloadModify:
-		return modifyExistingSubscription(ctx, store, subscriptions)
-	case ui.SubscriptionDownloadUpdate:
+	case ui.SubscriptionUpdate:
+		index, ok, err := selectSubscriptionTarget("更新", subscriptions)
+		if err != nil || !ok {
+			return err
+		}
 		return updateExistingSubscription(ctx, store, subscriptions, index)
+	case ui.SubscriptionModify:
+		index, ok, err := selectSubscriptionTarget("修改", subscriptions)
+		if err != nil || !ok {
+			return err
+		}
+		return modifyExistingSubscription(ctx, store, subscriptions, index)
+	case ui.SubscriptionDelete:
+		index, ok, err := selectSubscriptionTarget("删除", subscriptions)
+		if err != nil || !ok {
+			return err
+		}
+		return deleteExistingSubscription(store, subscriptions, index)
+	case ui.SubscriptionApply:
+		index, ok, err := selectSubscriptionTarget("应用", subscriptions)
+		if err != nil || !ok {
+			return err
+		}
+		return applyExistingSubscription(ctx, store, subscriptions, index)
 	default:
 		return fmt.Errorf("未知订阅操作: %d", action)
 	}
+}
+
+func loadSubscriptionStore() (mihomo.Store, []mihomo.Subscription, error) {
+	store := mihomo.NewStore()
+	if err := store.EnsureDirs(); err != nil {
+		return store, nil, err
+	}
+
+	subscriptions, err := store.LoadSubscriptions()
+	if err != nil {
+		return store, nil, err
+	}
+	return store, subscriptions, nil
+}
+
+func selectSubscriptionTarget(actionName string, subscriptions []mihomo.Subscription) (int, bool, error) {
+	if len(subscriptions) == 0 {
+		fmt.Printf("没有可%s的订阅。\n", actionName)
+		return -1, false, nil
+	}
+
+	index, err := ui.SelectSubscription(subscriptionLabels(subscriptions))
+	if err != nil {
+		return -1, false, err
+	}
+	if index < 0 {
+		fmt.Println("已返回。")
+		return -1, false, nil
+	}
+	return index, true, nil
 }
 
 func downloadNewSubscription(ctx context.Context, store mihomo.Store, subscriptions []mihomo.Subscription) error {
@@ -377,19 +384,9 @@ func updateExistingSubscription(ctx context.Context, store mihomo.Store, subscri
 	return nil
 }
 
-func modifyExistingSubscription(ctx context.Context, store mihomo.Store, subscriptions []mihomo.Subscription) error {
-	if len(subscriptions) == 0 {
-		fmt.Println("没有可修改的订阅。")
-		return nil
-	}
-
-	index, err := ui.SelectSubscription(subscriptionLabels(subscriptions))
-	if err != nil {
-		return err
-	}
-	if index < 0 {
-		fmt.Println("已返回。")
-		return nil
+func modifyExistingSubscription(ctx context.Context, store mihomo.Store, subscriptions []mihomo.Subscription, index int) error {
+	if index < 0 || index >= len(subscriptions) {
+		return fmt.Errorf("订阅选择无效")
 	}
 
 	subscription := subscriptions[index]
@@ -433,19 +430,9 @@ func modifyExistingSubscription(ctx context.Context, store mihomo.Store, subscri
 	return nil
 }
 
-func deleteExistingSubscription(store mihomo.Store, subscriptions []mihomo.Subscription) error {
-	if len(subscriptions) == 0 {
-		fmt.Println("没有可删除的订阅。")
-		return nil
-	}
-
-	index, err := ui.SelectSubscription(subscriptionLabels(subscriptions))
-	if err != nil {
-		return err
-	}
-	if index < 0 {
-		fmt.Println("已返回。")
-		return nil
+func deleteExistingSubscription(store mihomo.Store, subscriptions []mihomo.Subscription, index int) error {
+	if index < 0 || index >= len(subscriptions) {
+		return fmt.Errorf("订阅选择无效")
 	}
 
 	subscription := subscriptions[index]
@@ -481,27 +468,9 @@ func deleteExistingSubscription(store mihomo.Store, subscriptions []mihomo.Subsc
 	return nil
 }
 
-func selectAndApplySubscription(ctx context.Context) error {
-	store := mihomo.NewStore()
-	if err := store.EnsureDirs(); err != nil {
-		return err
-	}
-
-	subscriptions, err := store.LoadSubscriptions()
-	if err != nil {
-		return err
-	}
-	if len(subscriptions) == 0 {
-		return fmt.Errorf("还没有订阅，请先选择“下载/更新/修改/删除 Clash 订阅”")
-	}
-
-	index, err := ui.SelectSubscription(subscriptionLabels(subscriptions))
-	if err != nil {
-		return err
-	}
-	if index < 0 {
-		fmt.Println("已返回。")
-		return nil
+func applyExistingSubscription(ctx context.Context, store mihomo.Store, subscriptions []mihomo.Subscription, index int) error {
+	if index < 0 || index >= len(subscriptions) {
+		return fmt.Errorf("订阅选择无效")
 	}
 
 	finalConfigPath, err := store.CopySubscriptionToFinalConfig(subscriptions[index])
@@ -571,7 +540,7 @@ func installBundledMihomoBinary(baseDir string, overwrite bool) (string, error) 
 	if err != nil {
 		var missingPackage missingBundledMihomoPackageError
 		if errors.As(err, &missingPackage) && fileExists(targetPath) {
-			fmt.Printf("缺少当前平台的内置 mihomo 安装包，无法覆盖现有程序文件；已保留: %s\n", targetPath)
+			fmt.Printf("缺少当前 Linux 架构的内置 mihomo 安装包，无法覆盖现有程序文件；已保留: %s\n", targetPath)
 			fmt.Printf("提示: %v\n", missingPackage)
 			return "", nil
 		}
@@ -603,123 +572,18 @@ func bundledMihomoPackagePath(baseDir string) (string, error) {
 }
 
 func bundledMihomoPackagePattern() string {
-	switch runtime.GOOS + "/" + runtime.GOARCH {
-	case "linux/amd64":
+	switch runtime.GOARCH {
+	case "amd64":
 		return "mihomo-linux-amd64-v3-v*.gz"
-	case "linux/arm64":
+	case "arm64":
 		return "mihomo-linux-arm64-v*.gz"
 	default:
-		return fmt.Sprintf("mihomo-%s-%s-*", runtime.GOOS, runtime.GOARCH)
+		return fmt.Sprintf("mihomo-linux-%s-*", runtime.GOARCH)
 	}
 }
 
 func mihomoBinaryName() string {
 	return "mihomo"
-}
-
-func verifyLocalMihomo(ctx context.Context) error {
-	store := mihomo.NewStore()
-	binaryPath := filepath.Join(store.BaseDir, mihomoBinaryName())
-	if !fileExists(binaryPath) {
-		return fmt.Errorf("本地 mihomo 程序文件不存在: %s", binaryPath)
-	}
-
-	packagePath, err := bundledMihomoPackagePath(store.BaseDir)
-	if err != nil {
-		return fmt.Errorf("缺少本地安装包，无法验证当前 mihomo: %w", err)
-	}
-	assetName := filepath.Base(packagePath)
-
-	manifest, err := loadMihomoPackageManifest(store.BaseDir)
-	if err != nil {
-		return err
-	}
-	asset, ok := findManifestAssetByName(manifest.Assets, assetName)
-	if !ok {
-		return fmt.Errorf("本地安装包 manifest 中没有当前平台安装包: %s", assetName)
-	}
-
-	fmt.Printf("本地安装包版本: %s（%s，生成于 %s）\n", manifest.Version, manifest.Source, manifest.GeneratedAt)
-	if asset.SHA256 == "" {
-		return fmt.Errorf("本地安装包 manifest 缺少 sha256，无法验证安装包: %s", assetName)
-	}
-	actualPackageHash, err := downloader.FileSHA256(packagePath)
-	if err != nil {
-		return err
-	}
-	if actualPackageHash != strings.ToLower(strings.TrimSpace(asset.SHA256)) {
-		return fmt.Errorf("本地安装包 sha256 验证失败: 期望 %s，实际 %s", asset.SHA256, actualPackageHash)
-	}
-	fmt.Printf("本地安装包 sha256 验证通过: %s\n", actualPackageHash)
-
-	tempDir, err := os.MkdirTemp("", "snailproxy-mihomo-verify-")
-	if err != nil {
-		return fmt.Errorf("创建验证临时目录失败: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	expectedBinaryPath, err := archive.ExtractMihomoBinary(packagePath, assetName, tempDir)
-	if err != nil {
-		return fmt.Errorf("解压已验证安装包失败: %w", err)
-	}
-
-	expectedHash, err := downloader.FileSHA256(expectedBinaryPath)
-	if err != nil {
-		return err
-	}
-	actualHash, err := downloader.FileSHA256(binaryPath)
-	if err != nil {
-		return err
-	}
-	if actualHash != expectedHash {
-		return fmt.Errorf("本地 mihomo 文件验证失败: 期望 %s，实际 %s", expectedHash, actualHash)
-	}
-
-	fmt.Printf("本地 mihomo 文件验证通过: %s\n", binaryPath)
-	fmt.Printf("mihomo sha256: %s\n", actualHash)
-	printMihomoFreshnessHint(ctx, manifest)
-	return nil
-}
-
-func loadMihomoPackageManifest(baseDir string) (mihomoPackageManifest, error) {
-	targetPath := filepath.Join(baseDir, "packages", mihomoPackageManifestFile)
-	data, err := os.ReadFile(targetPath)
-	if err != nil {
-		return mihomoPackageManifest{}, fmt.Errorf("读取本地安装包 manifest 失败: %w", err)
-	}
-	var manifest mihomoPackageManifest
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return mihomoPackageManifest{}, fmt.Errorf("解析本地安装包 manifest 失败: %w", err)
-	}
-	if strings.TrimSpace(manifest.Version) == "" {
-		return mihomoPackageManifest{}, fmt.Errorf("本地安装包 manifest 缺少版本号")
-	}
-	return manifest, nil
-}
-
-func findManifestAssetByName(assets []mihomoPackageManifestAsset, name string) (mihomoPackageManifestAsset, bool) {
-	for _, asset := range assets {
-		if asset.Name == name {
-			return asset, true
-		}
-	}
-	return mihomoPackageManifestAsset{}, false
-}
-
-func printMihomoFreshnessHint(ctx context.Context, manifest mihomoPackageManifest) {
-	if strings.TrimSpace(manifest.APIURL) == "" {
-		return
-	}
-	release, err := github.FetchLatestRelease(ctx, manifest.APIURL)
-	if err != nil {
-		fmt.Printf("提示: 无法检查当前最新版本: %v\n", err)
-		return
-	}
-	if strings.TrimSpace(release.TagName) == strings.TrimSpace(manifest.Version) {
-		fmt.Printf("版本状态: 本地安装包版本就是当前最新版本 %s。\n", manifest.Version)
-		return
-	}
-	fmt.Printf("版本状态: 本地安装包版本是 %s，当前最新版本是 %s；本地文件验证通过，但离线包可能已过时。\n", manifest.Version, release.TagName)
 }
 
 func subscriptionLabels(subscriptions []mihomo.Subscription) []string {
@@ -757,7 +621,7 @@ func fetchMihomoAssets(ctx context.Context) ([]github.Asset, error) {
 	fmt.Printf("最新版本: %s\n", release.TagName)
 	assets := filterMihomoAssets(release.Assets)
 	if len(assets) == 0 {
-		return nil, fmt.Errorf("release %s 没有找到适用于当前系统 %s/%s 的 mihomo 下载包", release.TagName, runtime.GOOS, runtime.GOARCH)
+		return nil, fmt.Errorf("release %s 没有找到适用于当前 Linux 架构 linux/%s 的 mihomo 下载包", release.TagName, runtime.GOARCH)
 	}
 
 	return assets, nil
@@ -782,7 +646,7 @@ func isCurrentPlatformMihomoAsset(name string) bool {
 		return false
 	}
 
-	return parts[1] == runtime.GOOS && matchesCurrentArch(parts[2])
+	return parts[1] == "linux" && matchesCurrentArch(parts[2])
 }
 
 func matchesCurrentArch(assetArch string) bool {
@@ -795,7 +659,6 @@ func matchesCurrentArch(assetArch string) bool {
 func isSupportedArchive(name string) bool {
 	lower := strings.ToLower(name)
 	return strings.HasSuffix(lower, ".gz") ||
-		strings.HasSuffix(lower, ".zip") ||
 		strings.HasSuffix(lower, ".tar.gz") ||
 		strings.HasSuffix(lower, ".tgz")
 }

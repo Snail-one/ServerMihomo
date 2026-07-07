@@ -8,10 +8,10 @@ snailproxy 是一个轻量级命令行安装工具，用于下载最新的 mihom
 
 # 当前功能范围
 
-* Linux + systemd 安装支持
+* 仅支持 Linux + systemd 安装
 * GitHub Release 版本发现
 * 支持代理访问 API（失败自动切换直连）
-* 当前平台安装包自动过滤
+* Linux 架构安装包自动过滤
 * Clash 订阅下载 / 更新 / 修改 / 删除元数据（存储在 `mihomo/profiles`）
 * 订阅 YAML 校验与 `proxies` 检查
 * 选择订阅原样应用为 `mihomo config.yaml` 并重启 mihomo 服务
@@ -37,13 +37,13 @@ go generate ./resources
 * 最新 `mihomo-linux-amd64-v3-v*.gz`
 * 最新 `mihomo-linux-arm64-v*.gz`
 
-构建并重新下载内嵌离线安装资源：
+构建 Linux 二进制并重新下载内嵌离线安装资源：
 
 ```bash
 sh build.sh
 ```
 
-如果只需要构建二进制、跳过资源下载，运行：
+如果只需要构建 Linux 二进制、跳过资源下载，运行：
 
 ```bash
 sh build-only.sh
@@ -74,12 +74,10 @@ MIHOMO_RELEASE_CHANNEL=alpha
 # 主菜单
 
 ```text
-1. 安装
-2. Clash 订阅管理
-3. 应用订阅
-4. mihomo 服务管理
-5. 验证本地文件
-6. 卸载
+1. 安装与更新
+2. 订阅管理
+3. mihomo 服务与代理
+4. 卸载
 0. 退出
 ```
 
@@ -87,9 +85,9 @@ MIHOMO_RELEASE_CHANNEL=alpha
 
 ```text
 1. 本地安装
-2. 在线安装
-3. 创建用户并安装 mihomo systemd 服务
-0. 返回主菜单
+2. 在线下载并安装 mihomo
+3. 安装/更新 systemd 服务
+0. 返回
 ```
 
 ---
@@ -111,27 +109,13 @@ MIHOMO_RELEASE_CHANNEL=alpha
   /opt/mihomo/mihomo
   ```
 
----
-
-# 本地 mihomo 校验
-
-选择：
-
-> 验证本地 mihomo
-
-会执行以下操作：
-
-* 使用内嵌 manifest 的 sha256 校验安装包
-* 对比当前系统中的 mihomo 文件
-* 提示是否有新版本可用
-
----
-
 # 构建方法
 
 ```bash
 sh build.sh
 ```
+
+构建脚本会固定 `GOOS=linux`，默认使用当前或环境变量指定的 `GOARCH`。
 
 ---
 
@@ -139,7 +123,7 @@ sh build.sh
 
 ```bash
 go generate ./resources
-go build -o snailproxy .
+GOOS=linux go build -o snailproxy .
 ```
 
 ---

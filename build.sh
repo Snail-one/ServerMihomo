@@ -8,5 +8,5 @@ cd "$script_dir"
 export GOCACHE
 mkdir -p "$GOCACHE"
 
-env -u GOOS -u GOARCH go generate ./resources
+GOOS=linux go generate ./resources
 sh "$script_dir/build-only.sh"

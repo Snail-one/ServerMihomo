@@ -177,14 +177,14 @@ func (i *Installer) WriteProxyEnvironment(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := writeProxyEnvironmentToBashrc(target, settings); err != nil {
+	block := proxyEnvironmentBashrcBlock(settings)
+	if err := writeProxyEnvironmentToBashrc(target, block); err != nil {
 		return err
 	}
 
 	fmt.Printf("代理环境变量已写入 .bashrc 底部: %s\n", target.Path)
-	fmt.Printf("HTTP/HTTPS 代理: %s\n", settings.HTTPProxy)
-	fmt.Printf("ALL_PROXY: %s\n", settings.AllProxy)
-	fmt.Printf("本地和私网地址将通过 no_proxy/NO_PROXY 保持直连。\n")
+	fmt.Println("写入内容:")
+	fmt.Print(block)
 	fmt.Printf("重新登录，或执行 source %s 后生效。\n", target.Path)
 	return nil
 }
@@ -257,13 +257,13 @@ type systemUser struct {
 	GID     string
 }
 
-func writeProxyEnvironmentToBashrc(target proxyEnvironmentTarget, settings proxyEnvironmentSettings) error {
+func writeProxyEnvironmentToBashrc(target proxyEnvironmentTarget, block string) error {
 	data, err := os.ReadFile(target.Path)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("读取 .bashrc 失败: %w", err)
 	}
 
-	updated := appendProxyEnvironmentBlockToBashrc(string(data), proxyEnvironmentBashrcBlock(settings))
+	updated := appendProxyEnvironmentBlockToBashrc(string(data), block)
 	if err := os.WriteFile(target.Path, []byte(updated), 0o644); err != nil {
 		return fmt.Errorf("写入 .bashrc 失败: %w", err)
 	}

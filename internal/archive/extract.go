@@ -2,7 +2,6 @@ package archive
 
 import (
 	"archive/tar"
-	"archive/zip"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -22,8 +21,6 @@ func ExtractMihomoBinary(archivePath, assetName, targetDir string) (string, erro
 		return extractTarGzip(archivePath, targetDir)
 	case strings.HasSuffix(lower, ".gz"):
 		return extractGzip(archivePath, targetDir)
-	case strings.HasSuffix(lower, ".zip"):
-		return extractZip(archivePath, targetDir)
 	default:
 		return copyPlainBinary(archivePath, targetDir)
 	}
@@ -73,30 +70,6 @@ func extractTarGzip(archivePath, targetDir string) (string, error) {
 		if isMihomoBinary(header.Name) {
 			return writeExecutable(tr, filepath.Join(targetDir, binaryName()))
 		}
-	}
-
-	return "", fmt.Errorf("压缩包里没有找到 mihomo 可执行文件")
-}
-
-func extractZip(archivePath, targetDir string) (string, error) {
-	zr, err := zip.OpenReader(archivePath)
-	if err != nil {
-		return "", err
-	}
-	defer zr.Close()
-
-	for _, file := range zr.File {
-		if file.FileInfo().IsDir() || !isMihomoBinary(file.Name) {
-			continue
-		}
-
-		in, err := file.Open()
-		if err != nil {
-			return "", err
-		}
-		defer in.Close()
-
-		return writeExecutable(in, filepath.Join(targetDir, binaryName()))
 	}
 
 	return "", fmt.Errorf("压缩包里没有找到 mihomo 可执行文件")
