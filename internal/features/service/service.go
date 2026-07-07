@@ -28,7 +28,7 @@ func (Feature) Run(ctx context.Context, runtime feature.Runtime) error {
 	}
 	if action == ActionReturn {
 		fmt.Println("已返回。")
-		return nil
+		return feature.ErrReturn
 	}
 
 	manager, err := runtime.NewPlatformManager()

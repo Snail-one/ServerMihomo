@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime"
 	"strings"
@@ -55,17 +56,28 @@ func Run(ctx context.Context, args []string, registry feature.Registry) error {
 			return nil
 		}
 
-		if err := action.feature.Run(ctx, runtimeEnv); err != nil {
-			fmt.Printf("错误: %v\n", err)
-		} else {
-			fmt.Println("操作完成。")
-		}
-		fmt.Println()
-		if err := terminal.Pause("按 Enter 返回主菜单..."); err != nil {
+		if err := runSelectedFeature(ctx, runtimeEnv, action.feature); err != nil {
 			return err
 		}
-		fmt.Println()
 	}
+}
+
+func runSelectedFeature(ctx context.Context, runtimeEnv feature.Runtime, selected feature.Feature) error {
+	if err := selected.Run(ctx, runtimeEnv); err != nil {
+		if errors.Is(err, feature.ErrReturn) {
+			return nil
+		}
+		fmt.Printf("错误: %v\n", err)
+	} else {
+		fmt.Println("操作完成。")
+	}
+
+	fmt.Println()
+	if err := terminal.Pause("按 Enter 返回主菜单..."); err != nil {
+		return err
+	}
+	fmt.Println()
+	return nil
 }
 
 func selectMainMenu(registry feature.Registry) (mainMenuAction, error) {

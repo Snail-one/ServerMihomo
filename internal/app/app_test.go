@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -86,10 +87,53 @@ func TestSelectMainMenuIsGeneratedFromRegistry(t *testing.T) {
 	}
 }
 
+func TestRunSelectedFeatureReturnSkipsCompletionAndPause(t *testing.T) {
+	selected := testFeature{
+		run: func(context.Context, feature.Runtime) error {
+			fmt.Println("已返回。")
+			return feature.ErrReturn
+		},
+	}
+
+	var err error
+	output := captureStdout(t, func() {
+		err = runSelectedFeature(context.Background(), nil, selected)
+	})
+	if err != nil {
+		t.Fatalf("runSelectedFeature() error = %v", err)
+	}
+	if !strings.Contains(output, "已返回。") {
+		t.Fatalf("output should contain return message:\n%s", output)
+	}
+	for _, unwanted := range []string{"操作完成。", "按 Enter 返回主菜单..."} {
+		if strings.Contains(output, unwanted) {
+			t.Fatalf("output should not contain %q:\n%s", unwanted, output)
+		}
+	}
+}
+
+func TestRunSelectedFeatureSuccessShowsCompletionAndPause(t *testing.T) {
+	withInput(t, "\n")
+
+	var err error
+	output := captureStdout(t, func() {
+		err = runSelectedFeature(context.Background(), nil, testFeature{})
+	})
+	if err != nil {
+		t.Fatalf("runSelectedFeature() error = %v", err)
+	}
+	for _, want := range []string{"操作完成。", "按 Enter 返回主菜单..."} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output should contain %q:\n%s", want, output)
+		}
+	}
+}
+
 type testFeature struct {
 	id    string
 	label string
 	order int
+	run   func(context.Context, feature.Runtime) error
 }
 
 func (f testFeature) ID() string {
@@ -104,7 +148,10 @@ func (f testFeature) Order() int {
 	return f.order
 }
 
-func (f testFeature) Run(context.Context, feature.Runtime) error {
+func (f testFeature) Run(ctx context.Context, runtime feature.Runtime) error {
+	if f.run != nil {
+		return f.run(ctx, runtime)
+	}
 	return nil
 }
 

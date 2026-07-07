@@ -66,7 +66,7 @@ func (Feature) Run(ctx context.Context, runtime feature.Runtime) error {
 	switch action {
 	case ActionReturn:
 		fmt.Println("已返回。")
-		return nil
+		return feature.ErrReturn
 	case ActionLocal:
 		return localInstall(runtime)
 	case ActionOnline:

@@ -2,6 +2,7 @@ package feature
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -10,6 +11,8 @@ import (
 	"snailproxy/internal/infra/platform"
 	"snailproxy/internal/terminal"
 )
+
+var ErrReturn = errors.New("返回上级菜单")
 
 type Feature interface {
 	ID() string

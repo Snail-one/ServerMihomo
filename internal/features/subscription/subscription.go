@@ -39,7 +39,7 @@ func (Feature) Run(ctx context.Context, runtime feature.Runtime) error {
 	switch action {
 	case ActionReturn:
 		fmt.Println("已返回。")
-		return nil
+		return feature.ErrReturn
 	case ActionCreate:
 		return downloadNewSubscription(ctx, store, subscriptions)
 	case ActionUpdate:
@@ -96,7 +96,7 @@ func selectSubscriptionTarget(actionName string, subscriptions []mihomo.Subscrip
 	}
 	if index < 0 {
 		fmt.Println("已返回。")
-		return -1, false, nil
+		return -1, false, feature.ErrReturn
 	}
 	return index, true, nil
 }
