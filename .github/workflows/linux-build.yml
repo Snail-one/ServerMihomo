@@ -49,7 +49,7 @@ jobs:
           cache: true
 
       - name: Generate resources
-        run: go generate ./resources
+        run: GOOS=linux go generate ./internal/assets
 
       - name: Build
         env:
@@ -62,7 +62,7 @@ jobs:
           commit="$(git rev-parse --short HEAD)"
           build_date="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
           ldflags="-s -w -X snailproxy/internal/version.Version=${version} -X snailproxy/internal/version.Commit=${commit} -X snailproxy/internal/version.BuildDate=${build_date}"
-          go build -trimpath -ldflags="${ldflags}" -o "dist/snailproxy-linux-${GOARCH}" .
+          go build -trimpath -ldflags="${ldflags}" -o "dist/snailproxy-linux-${GOARCH}" ./cmd/snailproxy
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
