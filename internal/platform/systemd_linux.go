@@ -1,6 +1,6 @@
 //go:build linux
 
-package linux
+package platform
 
 import (
 	"context"
@@ -31,7 +31,7 @@ LimitNOFILE=51200
 WantedBy=multi-user.target
 `
 
-func (m *Manager) InstallService(ctx context.Context) error {
+func (m *linuxManager) InstallService(ctx context.Context) error {
 	if _, err := os.Stat(installedBinary); err != nil {
 		return fmt.Errorf("mihomo 程序文件不存在，请先本地安装或下载并安装程序文件: %w", err)
 	}
@@ -70,15 +70,15 @@ func (m *Manager) InstallService(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) StartService(ctx context.Context) error {
+func (m *linuxManager) StartService(ctx context.Context) error {
 	return m.runServiceControl(ctx, "start", "mihomo 服务已启动。")
 }
 
-func (m *Manager) RestartService(ctx context.Context) error {
+func (m *linuxManager) RestartService(ctx context.Context) error {
 	return m.runServiceControl(ctx, "restart", "mihomo 服务已重启。")
 }
 
-func (m *Manager) runServiceControl(ctx context.Context, systemctlAction string, successMessage string) error {
+func (m *linuxManager) runServiceControl(ctx context.Context, systemctlAction string, successMessage string) error {
 	if _, err := os.Stat(installedBinary); err != nil {
 		return fmt.Errorf("mihomo 程序文件不存在，请先本地安装或下载并安装程序文件: %w", err)
 	}
@@ -103,7 +103,7 @@ func (m *Manager) runServiceControl(ctx context.Context, systemctlAction string,
 	return nil
 }
 
-func (m *Manager) StopService(ctx context.Context) error {
+func (m *linuxManager) StopService(ctx context.Context) error {
 	if _, err := os.Stat(serviceFile); err != nil {
 		return fmt.Errorf("mihomo systemd 服务不存在，请先创建用户并安装 mihomo systemd 服务: %w", err)
 	}

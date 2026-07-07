@@ -1,6 +1,6 @@
 //go:build linux
 
-package linux
+package platform
 
 import (
 	"context"
@@ -39,7 +39,7 @@ type systemUser struct {
 	GID     string
 }
 
-func (m *Manager) WriteProxyEnvironment(ctx context.Context) error {
+func (m *linuxManager) WriteProxyEnvironment(ctx context.Context) error {
 	settings := detectMihomoProxySettings()
 	target, err := currentProxyEnvironmentTarget()
 	if err != nil {
@@ -57,7 +57,7 @@ func (m *Manager) WriteProxyEnvironment(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) ClearProxyEnvironment(ctx context.Context) error {
+func (m *linuxManager) ClearProxyEnvironment(ctx context.Context) error {
 	target, err := currentProxyEnvironmentTarget()
 	if err != nil {
 		return err

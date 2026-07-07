@@ -94,7 +94,7 @@ MIHOMO_RELEASE_CHANNEL=alpha
 
 # 代码组织
 
-菜单业务按主菜单拆分在 `internal/install`、`internal/subscription`、`internal/service`、`internal/uninstall`。`internal/app` 只保留程序启动、版本参数、sudo 检查和主菜单分发；各菜单选择逻辑放在 `internal/ui/*menu`，通用菜单输入循环放在 `internal/ui/menu`。底层系统能力集中在 `internal/platform`，通过 `platform.Manager` 暴露，Linux 实现按二进制安装、systemd、代理环境变量、卸载和命令执行拆分。
+菜单业务按主菜单拆分在 `internal/install`、`internal/subscription`、`internal/service`、`internal/uninstall`。`internal/app` 只保留程序启动、版本参数、sudo 检查和主菜单分发；各菜单选择逻辑放在 `internal/ui/*menu`，通用菜单输入循环放在 `internal/ui/menu`。底层系统能力集中在 `internal/platform`，通过 `platform.Manager` 暴露；Linux 实现直接放在 `internal/platform/*_linux.go`，按二进制安装、systemd、代理环境变量、卸载和命令执行拆分。
 
 ---
 

@@ -1,6 +1,6 @@
 //go:build linux
 
-package linux
+package platform
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-func (m *Manager) Uninstall(ctx context.Context) error {
+func (m *linuxManager) Uninstall(ctx context.Context) error {
 	runCommandAllowFailure(ctx, "systemctl", "stop", serviceName)
 	runCommandAllowFailure(ctx, "systemctl", "disable", serviceName)
 

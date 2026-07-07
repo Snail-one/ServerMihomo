@@ -1,6 +1,6 @@
 //go:build linux
 
-package linux
+package platform
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"snailproxy/internal/archive"
 )
 
-func (m *Manager) PrepareBinary(ctx context.Context, archivePath string, assetName string, overwrite bool) error {
+func (m *linuxManager) PrepareBinary(ctx context.Context, archivePath string, assetName string, overwrite bool) error {
 	if fileExists(installedBinary) {
 		if !overwrite {
 			fmt.Printf("跳过安装，保留现有程序文件: %s\n", installedBinary)
