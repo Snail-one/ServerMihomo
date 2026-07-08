@@ -13,9 +13,8 @@ import (
 )
 
 const (
-	defaultMihomoMixedPort = 57913
-	defaultNoProxy         = "localhost,127.0.0.1,127.0.0.0/8,::1," +
-		"10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16,*.local"
+	defaultMihomoMixedPort     = 57913
+	defaultNoProxy             = "localhost,127.0.0.1,127.0.0.0/8,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16,*.local"
 	bashrcFileName             = ".bashrc"
 	proxyEnvironmentBlockBegin = "# >>> snailproxy proxy environment >>>"
 	proxyEnvironmentBlockEnd   = "# <<< snailproxy proxy environment <<<"
@@ -23,8 +22,6 @@ const (
 
 type proxyEnvironmentSettings struct {
 	HTTPProxy string
-	AllProxy  string
-	NoProxy   string
 }
 
 type proxyEnvironmentTarget struct {
@@ -243,48 +240,22 @@ func proxyEnvironmentSettingsFromConfig(data []byte) (proxyEnvironmentSettings, 
 		return proxyEnvironmentSettingsFromMixedPort(mixedPort), true
 	}
 
-	httpPort, hasHTTPPort := parseTopLevelInt(data, "port")
-	socksPort, hasSocksPort := parseTopLevelInt(data, "socks-port")
-	switch {
-	case hasHTTPPort && hasSocksPort:
+	if httpPort, ok := parseTopLevelInt(data, "port"); ok {
 		return proxyEnvironmentSettings{
 			HTTPProxy: httpProxyURL(httpPort),
-			AllProxy:  socksProxyURL(socksPort),
-			NoProxy:   defaultNoProxy,
 		}, true
-	case hasHTTPPort:
-		httpProxy := httpProxyURL(httpPort)
-		return proxyEnvironmentSettings{
-			HTTPProxy: httpProxy,
-			AllProxy:  httpProxy,
-			NoProxy:   defaultNoProxy,
-		}, true
-	case hasSocksPort:
-		socksProxy := socksProxyURL(socksPort)
-		return proxyEnvironmentSettings{
-			HTTPProxy: socksProxy,
-			AllProxy:  socksProxy,
-			NoProxy:   defaultNoProxy,
-		}, true
-	default:
-		return proxyEnvironmentSettings{}, false
 	}
+	return proxyEnvironmentSettings{}, false
 }
 
 func proxyEnvironmentSettingsFromMixedPort(port int) proxyEnvironmentSettings {
 	return proxyEnvironmentSettings{
 		HTTPProxy: httpProxyURL(port),
-		AllProxy:  socksProxyURL(port),
-		NoProxy:   defaultNoProxy,
 	}
 }
 
 func httpProxyURL(port int) string {
 	return fmt.Sprintf("http://127.0.0.1:%d", port)
-}
-
-func socksProxyURL(port int) string {
-	return fmt.Sprintf("socks5h://127.0.0.1:%d", port)
 }
 
 func parseTopLevelInt(data []byte, key string) (int, bool) {
@@ -315,25 +286,13 @@ func parseTopLevelInt(data []byte, key string) (int, bool) {
 func proxyEnvironmentContent(settings proxyEnvironmentSettings) string {
 	return fmt.Sprintf(`# Managed by snailproxy. Use snailproxy to clear this file.
 export http_proxy=%q
-export HTTP_PROXY=%q
 export https_proxy=%q
-export HTTPS_PROXY=%q
-export ftp_proxy=%q
-export FTP_PROXY=%q
-export all_proxy=%q
-export ALL_PROXY=%q
 export no_proxy=%q
 export NO_PROXY=%q
 `,
 		settings.HTTPProxy,
 		settings.HTTPProxy,
-		settings.HTTPProxy,
-		settings.HTTPProxy,
-		settings.HTTPProxy,
-		settings.HTTPProxy,
-		settings.AllProxy,
-		settings.AllProxy,
-		settings.NoProxy,
-		settings.NoProxy,
+		defaultNoProxy,
+		defaultNoProxy,
 	)
 }

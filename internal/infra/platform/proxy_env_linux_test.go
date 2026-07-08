@@ -25,21 +25,14 @@ tun:
 
 func TestProxyEnvironmentContent(t *testing.T) {
 	content := proxyEnvironmentContent(proxyEnvironmentSettingsFromMixedPort(57913))
-	for _, want := range []string{
-		`export http_proxy="http://127.0.0.1:57913"`,
-		`export HTTP_PROXY="http://127.0.0.1:57913"`,
-		`export https_proxy="http://127.0.0.1:57913"`,
-		`export HTTPS_PROXY="http://127.0.0.1:57913"`,
-		`export ftp_proxy="http://127.0.0.1:57913"`,
-		`export FTP_PROXY="http://127.0.0.1:57913"`,
-		`export all_proxy="socks5h://127.0.0.1:57913"`,
-		`export ALL_PROXY="socks5h://127.0.0.1:57913"`,
-		`export no_proxy="` + defaultNoProxy + `"`,
-		`export NO_PROXY="` + defaultNoProxy + `"`,
-	} {
-		if !strings.Contains(content, want) {
-			t.Fatalf("proxyEnvironmentContent() missing %q in:\n%s", want, content)
-		}
+	want := `# Managed by snailproxy. Use snailproxy to clear this file.
+export http_proxy="http://127.0.0.1:57913"
+export https_proxy="http://127.0.0.1:57913"
+export no_proxy="` + defaultNoProxy + `"
+export NO_PROXY="` + defaultNoProxy + `"
+`
+	if content != want {
+		t.Fatalf("proxyEnvironmentContent() = %q, want %q", content, want)
 	}
 }
 
@@ -54,9 +47,6 @@ mixed-port: 57913
 	if settings.HTTPProxy != "http://127.0.0.1:57913" {
 		t.Fatalf("HTTPProxy = %q, want mixed-port HTTP proxy", settings.HTTPProxy)
 	}
-	if settings.AllProxy != "socks5h://127.0.0.1:57913" {
-		t.Fatalf("AllProxy = %q, want mixed-port SOCKS proxy", settings.AllProxy)
-	}
 }
 
 func TestProxyEnvironmentSettingsFromConfigSupportsLegacyPorts(t *testing.T) {
@@ -69,16 +59,11 @@ socks-port: 7891
 	if settings.HTTPProxy != "http://127.0.0.1:7890" {
 		t.Fatalf("HTTPProxy = %q, want port HTTP proxy", settings.HTTPProxy)
 	}
-	if settings.AllProxy != "socks5h://127.0.0.1:7891" {
-		t.Fatalf("AllProxy = %q, want socks-port proxy", settings.AllProxy)
-	}
 }
 
 func TestAppendProxyEnvironmentBlockToBashrcAppendsAtBottom(t *testing.T) {
 	block := proxyEnvironmentBashrcBlock(proxyEnvironmentSettings{
 		HTTPProxy: "http://127.0.0.1:57913",
-		AllProxy:  "socks5h://127.0.0.1:57913",
-		NoProxy:   defaultNoProxy,
 	})
 	content := appendProxyEnvironmentBlockToBashrc("export PATH=$PATH\n", block)
 
@@ -93,13 +78,11 @@ func TestAppendProxyEnvironmentBlockToBashrcAppendsAtBottom(t *testing.T) {
 func TestAppendProxyEnvironmentBlockToBashrcReplacesExistingBlock(t *testing.T) {
 	oldBlock := proxyEnvironmentBashrcBlock(proxyEnvironmentSettings{
 		HTTPProxy: "http://127.0.0.1:7890",
-		AllProxy:  "socks5h://127.0.0.1:7891",
-		NoProxy:   defaultNoProxy,
 	})
 	newBlock := proxyEnvironmentBashrcBlock(proxyEnvironmentSettingsFromMixedPort(57913))
 	content := appendProxyEnvironmentBlockToBashrc("alias ll='ls -l'\n\n"+oldBlock, newBlock)
 
-	if strings.Contains(content, "7890") || strings.Contains(content, "7891") {
+	if strings.Contains(content, "7890") {
 		t.Fatalf("content still contains old proxy block:\n%s", content)
 	}
 	if strings.Count(content, proxyEnvironmentBlockBegin) != 1 {

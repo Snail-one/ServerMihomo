@@ -16,6 +16,7 @@ import (
 	"snailproxy/internal/infra/downloader"
 	"snailproxy/internal/infra/github"
 	"snailproxy/internal/infra/platform"
+	"snailproxy/internal/terminal"
 )
 
 const latestReleaseURL = "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest"
@@ -58,15 +59,25 @@ func (Feature) Order() int {
 }
 
 func (Feature) Run(ctx context.Context, runtime feature.Runtime) error {
-	action, err := Select()
-	if err != nil {
-		return err
-	}
+	for {
+		action, err := Select()
+		if err != nil {
+			return err
+		}
 
+		if action == ActionReturn {
+			fmt.Println("已返回。")
+			return feature.ErrReturn
+		}
+
+		if err := pauseAfterInstallAction(runInstallAction(ctx, runtime, action)); err != nil {
+			return err
+		}
+	}
+}
+
+func runInstallAction(ctx context.Context, runtime feature.Runtime, action Action) error {
 	switch action {
-	case ActionReturn:
-		fmt.Println("已返回。")
-		return feature.ErrReturn
 	case ActionLocal:
 		return localInstall(runtime)
 	case ActionOnline:
@@ -76,6 +87,21 @@ func (Feature) Run(ctx context.Context, runtime feature.Runtime) error {
 	default:
 		return fmt.Errorf("未知安装操作: %d", action)
 	}
+}
+
+func pauseAfterInstallAction(actionErr error) error {
+	if actionErr != nil {
+		fmt.Printf("错误: %v\n", actionErr)
+	} else {
+		fmt.Println("操作完成。")
+	}
+
+	fmt.Println()
+	if err := terminal.Pause("按 Enter 返回安装与更新菜单..."); err != nil {
+		return err
+	}
+	fmt.Println()
+	return nil
 }
 
 func downloadAndPrepareMihomo(ctx context.Context, runtime feature.Runtime) error {

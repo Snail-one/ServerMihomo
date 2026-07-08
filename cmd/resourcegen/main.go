@@ -251,14 +251,18 @@ func downloadResource(ctx context.Context, client *http.Client, rawURL string, t
 	}
 	req.Header.Set("User-Agent", "snailproxy-resource-downloader")
 
+	fmt.Printf("准备下载资源: %s\n", targetPath)
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("下载 %s 失败: %w", rawURL, err)
 	}
 	defer resp.Body.Close()
 
+	actualURL := actualDownloadURL(resp, rawURL)
+	fmt.Printf("实际下载地址: %s\n", actualURL)
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("下载 %s 返回状态码: %s", rawURL, resp.Status)
+		return fmt.Errorf("下载 %s 返回状态码: %s", actualURL, resp.Status)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
@@ -283,7 +287,7 @@ func downloadResource(ctx context.Context, client *http.Client, rawURL string, t
 	}
 	if written == 0 {
 		_ = os.Remove(downloadPath)
-		return fmt.Errorf("下载内容为空: %s", rawURL)
+		return fmt.Errorf("下载内容为空: %s", actualURL)
 	}
 
 	if err := os.Rename(downloadPath, targetPath); err != nil {
@@ -293,6 +297,13 @@ func downloadResource(ctx context.Context, client *http.Client, rawURL string, t
 
 	fmt.Printf("已下载资源: %s (%d bytes)\n", targetPath, written)
 	return nil
+}
+
+func actualDownloadURL(resp *http.Response, fallback string) string {
+	if resp != nil && resp.Request != nil && resp.Request.URL != nil {
+		return resp.Request.URL.String()
+	}
+	return fallback
 }
 
 func verifyFileDigest(targetPath string, digest string) error {

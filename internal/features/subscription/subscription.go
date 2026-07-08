@@ -9,6 +9,7 @@ import (
 
 	"snailproxy/internal/domain/mihomo"
 	"snailproxy/internal/feature"
+	"snailproxy/internal/terminal"
 )
 
 type Feature struct{}
@@ -26,49 +27,78 @@ func (Feature) Order() int {
 }
 
 func (Feature) Run(ctx context.Context, runtime feature.Runtime) error {
-	store, subscriptions, err := loadSubscriptionStore(runtime)
-	if err != nil {
-		return err
-	}
+	for {
+		store, subscriptions, err := loadSubscriptionStore(runtime)
+		if err != nil {
+			return err
+		}
 
-	action, err := Select(subscriptionLabels(subscriptions))
-	if err != nil {
-		return err
-	}
+		action, err := Select(subscriptionLabels(subscriptions))
+		if err != nil {
+			return err
+		}
 
+		if action == ActionReturn {
+			fmt.Println("已返回。")
+			return feature.ErrReturn
+		}
+
+		completed, err := runSubscriptionAction(ctx, runtime, store, subscriptions, action)
+		if !completed && err == nil {
+			continue
+		}
+		if err := pauseAfterSubscriptionAction(err); err != nil {
+			return err
+		}
+	}
+}
+
+func runSubscriptionAction(ctx context.Context, runtime feature.Runtime, store mihomo.Store, subscriptions []mihomo.Subscription, action Action) (bool, error) {
 	switch action {
-	case ActionReturn:
-		fmt.Println("已返回。")
-		return feature.ErrReturn
 	case ActionCreate:
-		return downloadNewSubscription(ctx, store, subscriptions)
+		return true, downloadNewSubscription(ctx, store, subscriptions)
 	case ActionUpdate:
 		index, ok, err := selectSubscriptionTarget("更新", subscriptions)
 		if err != nil || !ok {
-			return err
+			return false, err
 		}
-		return updateExistingSubscription(ctx, store, subscriptions, index)
+		return true, updateExistingSubscription(ctx, store, subscriptions, index)
 	case ActionModify:
 		index, ok, err := selectSubscriptionTarget("修改", subscriptions)
 		if err != nil || !ok {
-			return err
+			return false, err
 		}
-		return modifyExistingSubscription(ctx, store, subscriptions, index)
+		return true, modifyExistingSubscription(ctx, store, subscriptions, index)
 	case ActionDelete:
 		index, ok, err := selectSubscriptionTarget("删除", subscriptions)
 		if err != nil || !ok {
-			return err
+			return false, err
 		}
-		return deleteExistingSubscription(store, subscriptions, index)
+		return true, deleteExistingSubscription(store, subscriptions, index)
 	case ActionApply:
 		index, ok, err := selectSubscriptionTarget("应用", subscriptions)
 		if err != nil || !ok {
-			return err
+			return false, err
 		}
-		return applyExistingSubscription(ctx, runtime, store, subscriptions, index)
+		return true, applyExistingSubscription(ctx, runtime, store, subscriptions, index)
 	default:
-		return fmt.Errorf("未知订阅操作: %d", action)
+		return true, fmt.Errorf("未知订阅操作: %d", action)
 	}
+}
+
+func pauseAfterSubscriptionAction(actionErr error) error {
+	if actionErr != nil {
+		fmt.Printf("错误: %v\n", actionErr)
+	} else {
+		fmt.Println("操作完成。")
+	}
+
+	fmt.Println()
+	if err := terminal.Pause("按 Enter 返回订阅管理菜单..."); err != nil {
+		return err
+	}
+	fmt.Println()
+	return nil
 }
 
 func loadSubscriptionStore(runtime feature.Runtime) (mihomo.Store, []mihomo.Subscription, error) {
@@ -96,7 +126,7 @@ func selectSubscriptionTarget(actionName string, subscriptions []mihomo.Subscrip
 	}
 	if index < 0 {
 		fmt.Println("已返回。")
-		return -1, false, feature.ErrReturn
+		return -1, false, nil
 	}
 	return index, true, nil
 }

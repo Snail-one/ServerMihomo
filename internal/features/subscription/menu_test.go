@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"snailproxy/internal/domain/mihomo"
 	"snailproxy/internal/terminal"
 )
 
@@ -85,6 +86,23 @@ func TestSelectSubscriptionTargetMapping(t *testing.T) {
 	}
 	if index != 1 {
 		t.Fatalf("index = %d, want 1", index)
+	}
+}
+
+func TestSelectSubscriptionTargetReturnStaysInSubscriptionMenu(t *testing.T) {
+	withInput(t, "0\n")
+
+	index, ok, err := selectSubscriptionTarget("更新", []mihomo.Subscription{
+		{Name: "订阅 1", File: "one.yaml"},
+	})
+	if err != nil {
+		t.Fatalf("selectSubscriptionTarget() error = %v, want nil", err)
+	}
+	if ok {
+		t.Fatal("ok = true, want false")
+	}
+	if index != -1 {
+		t.Fatalf("index = %d, want -1", index)
 	}
 }
 
