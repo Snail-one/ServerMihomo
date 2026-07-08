@@ -3,6 +3,7 @@
 package platform
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -27,7 +28,9 @@ func TestProxyEnvironmentContent(t *testing.T) {
 	content := proxyEnvironmentContent(proxyEnvironmentSettingsFromMixedPort(57913))
 	want := `# Managed by snailproxy. Use snailproxy to clear this file.
 export http_proxy="http://127.0.0.1:57913"
+export HTTP_PROXY="http://127.0.0.1:57913"
 export https_proxy="http://127.0.0.1:57913"
+export HTTPS_PROXY="http://127.0.0.1:57913"
 export no_proxy="` + defaultNoProxy + `"
 export NO_PROXY="` + defaultNoProxy + `"
 `
@@ -105,6 +108,32 @@ func TestRemoveProxyEnvironmentBlockFromBashrc(t *testing.T) {
 	}
 	if content != "before\n\nafter\n" {
 		t.Fatalf("content = %q, want existing bashrc content joined around removed block", content)
+	}
+}
+
+func TestUnmanagedProxyEnvironmentLinesFindsManualProxyConfig(t *testing.T) {
+	content := `# existing shell config
+export http_proxy="http://192.168.31.108:52013"
+HTTPS_PROXY=http://192.168.31.108:52013
+declare -x no_proxy="localhost,127.0.0.1"
+`
+	got := unmanagedProxyEnvironmentLines(content)
+	want := []string{
+		`export http_proxy="http://192.168.31.108:52013"`,
+		`HTTPS_PROXY=http://192.168.31.108:52013`,
+		`declare -x no_proxy="localhost,127.0.0.1"`,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unmanagedProxyEnvironmentLines() = %#v, want %#v", got, want)
+	}
+}
+
+func TestUnmanagedProxyEnvironmentLinesIgnoresSnailproxyManagedBlock(t *testing.T) {
+	managedBlock := proxyEnvironmentBashrcBlock(proxyEnvironmentSettingsFromMixedPort(57913))
+	content := "before\n\n" + managedBlock + "\nafter\n"
+	got := unmanagedProxyEnvironmentLines(content)
+	if len(got) != 0 {
+		t.Fatalf("unmanagedProxyEnvironmentLines() = %#v, want empty", got)
 	}
 }
 

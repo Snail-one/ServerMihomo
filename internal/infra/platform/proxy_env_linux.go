@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"snailproxy/internal/terminal"
 )
 
 const (
@@ -43,6 +45,24 @@ func (m *linuxManager) WriteProxyEnvironment(ctx context.Context) error {
 		return err
 	}
 	block := proxyEnvironmentBashrcBlock(settings)
+	conflicts, err := unmanagedProxyEnvironmentLinesFromBashrc(target)
+	if err != nil {
+		return err
+	}
+	if len(conflicts) > 0 {
+		fmt.Printf("检测到 %s 中已有其他代理环境变量配置:\n", target.Path)
+		for _, line := range conflicts {
+			fmt.Printf("  %s\n", line)
+		}
+		confirmed, err := terminal.ConfirmNoDefault("继续写入 snailproxy 代理环境变量? [y/N]: ")
+		if err != nil {
+			return err
+		}
+		if !confirmed {
+			fmt.Println("已取消写入代理环境变量。")
+			return nil
+		}
+	}
 	if err := writeProxyEnvironmentToBashrc(target, block); err != nil {
 		return err
 	}
@@ -85,6 +105,17 @@ func writeProxyEnvironmentToBashrc(target proxyEnvironmentTarget, block string) 
 		return fmt.Errorf("写入 .bashrc 失败: %w", err)
 	}
 	return chownProxyEnvironmentTarget(target)
+}
+
+func unmanagedProxyEnvironmentLinesFromBashrc(target proxyEnvironmentTarget) ([]string, error) {
+	data, err := os.ReadFile(target.Path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("读取 .bashrc 失败: %w", err)
+	}
+	return unmanagedProxyEnvironmentLines(string(data)), nil
 }
 
 func removeProxyEnvironmentFromBashrc(target proxyEnvironmentTarget) (bool, error) {
@@ -144,6 +175,49 @@ func removeProxyEnvironmentBlockFromBashrc(content string) (string, bool) {
 		} else {
 			content = before + after
 		}
+	}
+}
+
+func unmanagedProxyEnvironmentLines(content string) []string {
+	content, _ = removeProxyEnvironmentBlockFromBashrc(content)
+	lines := strings.Split(content, "\n")
+	result := make([]string, 0)
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if isProxyEnvironmentAssignment(trimmed) {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
+func isProxyEnvironmentAssignment(line string) bool {
+	line = strings.TrimSpace(line)
+	line = strings.TrimPrefix(line, "export ")
+	line = strings.TrimPrefix(line, "declare -x ")
+	for _, name := range proxyEnvironmentVariableNames() {
+		if line == name || strings.HasPrefix(line, name+"=") || strings.HasPrefix(line, name+" ") {
+			return true
+		}
+	}
+	return false
+}
+
+func proxyEnvironmentVariableNames() []string {
+	return []string{
+		"http_proxy",
+		"https_proxy",
+		"ftp_proxy",
+		"all_proxy",
+		"no_proxy",
+		"HTTP_PROXY",
+		"HTTPS_PROXY",
+		"FTP_PROXY",
+		"ALL_PROXY",
+		"NO_PROXY",
 	}
 }
 
@@ -286,10 +360,14 @@ func parseTopLevelInt(data []byte, key string) (int, bool) {
 func proxyEnvironmentContent(settings proxyEnvironmentSettings) string {
 	return fmt.Sprintf(`# Managed by snailproxy. Use snailproxy to clear this file.
 export http_proxy=%q
+export HTTP_PROXY=%q
 export https_proxy=%q
+export HTTPS_PROXY=%q
 export no_proxy=%q
 export NO_PROXY=%q
 `,
+		settings.HTTPProxy,
+		settings.HTTPProxy,
 		settings.HTTPProxy,
 		settings.HTTPProxy,
 		defaultNoProxy,
