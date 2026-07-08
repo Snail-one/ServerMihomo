@@ -44,11 +44,11 @@ var resourceFiles = []struct {
 }{
 	{
 		name: "geoip.metadb",
-		url:  "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.metadb",
+		url:  "https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/release/geoip.metadb",
 	},
 	{
 		name: "geosite.dat",
-		url:  "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geosite.dat",
+		url:  "https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/release/geosite.dat",
 	},
 }
 
