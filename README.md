@@ -24,13 +24,13 @@ snailproxy 是一个轻量级命令行安装工具，用于下载最新的 mihom
 一键下载当前 Linux 架构对应的最新 `snailproxy`：
 
 ```bash
-arch="$(case "$(uname -m)" in x86_64|amd64) echo amd64 ;; aarch64|arm64) echo arm64 ;; *) echo "不支持的架构: $(uname -m)" >&2; exit 1 ;; esac)" && curl -fL "https://github.com/Snail-one/ServerMihomo/releases/latest/download/snailproxy-linux-${arch}" -o snailproxy && chmod +x snailproxy
+arch="$(case "$(uname -m)" in x86_64|amd64) echo amd64 ;; aarch64|arm64) echo arm64 ;; *) echo "不支持的架构: $(uname -m)" >&2; exit 1 ;; esac)" && curl -fL "https://github.com/Snail-one/ServerMihomo/releases/latest/download/snailproxy-linux-${arch}" -o mihomo && chmod +x mihomo && sudo mv mihomo /usr/local/sbin/mihomo
 ```
 
 下载后运行：
 
 ```bash
-sudo ./snailproxy
+sudo ./mihomo
 ```
 
 ---
